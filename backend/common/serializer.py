@@ -692,6 +692,14 @@ class UserCreateSwaggerSerializer(serializers.Serializer):
 
     email = serializers.CharField(max_length=1000, required=True)
     role = serializers.ChoiceField(choices=ROLE_CHOICES, required=True)
+    org_id = serializers.UUIDField(
+        required=False,
+        help_text=(
+            "Optional. Add the user to this organization instead of the "
+            "caller's current org. Requires the caller to be a superuser or "
+            "an admin of the target org."
+        ),
+    )
     phone = serializers.CharField(
         max_length=12, required=False, allow_blank=True, allow_null=True
     )

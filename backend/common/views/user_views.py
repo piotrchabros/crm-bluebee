@@ -1,4 +1,7 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import connection, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, inline_serializer
@@ -12,7 +15,7 @@ from rest_framework.views import APIView
 from cases.models import Case
 from cases.serializer import CaseSerializer
 from common import swagger_params
-from common.models import Comment, Profile, Teams
+from common.models import Comment, Org, Profile, Teams, User
 from common.serializer import (
     BillingAddressSerializer,
     CommentSerializer,
@@ -84,45 +87,105 @@ class UsersListView(APIView, LimitOffsetPagination):
                 status=status.HTTP_403_FORBIDDEN,
             )
         params = request.data
-        if params:
-            user_serializer = CreateUserSerializer(
-                data=params, org=request.profile.org
+        if not params:
+            return Response(
+                {"error": True, "errors": "Invalid request"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-            address_serializer = BillingAddressSerializer(data=params)
-            profile_serializer = CreateProfileSerializer(data=params)
-            data = {}
+
+        # Resolve the target organization. Defaults to the caller's current org
+        # (taken from the signed JWT) unless an explicit `org_id` is supplied.
+        target_org = request.profile.org
+        org_id = params.get("org_id")
+        if org_id and str(org_id) != str(request.profile.org_id):
+            try:
+                target_org = Org.objects.get(id=org_id)
+            except (Org.DoesNotExist, ValidationError, ValueError):
+                return Response(
+                    {"error": True, "errors": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            # To write into a different org the caller must be a superuser, or
+            # hold an active admin profile in that target org.
+            is_target_admin = (
+                Profile.objects.filter(
+                    user=request.user, org=target_org, is_active=True
+                )
+                .filter(Q(role="ADMIN") | Q(is_organization_admin=True))
+                .exists()
+            )
+            if not request.user.is_superuser and not is_target_admin:
+                return Response(
+                    {
+                        "error": True,
+                        "errors": "You are not an admin of the target organization",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        # Email is globally unique on User, but a person can belong to several
+        # orgs via separate Profile rows. If the email already maps to a User we
+        # reuse it and only create a new Profile in the target org — bypassing
+        # CreateUserSerializer, whose ModelSerializer UniqueValidator would
+        # otherwise reject any existing email outright.
+        email = (params.get("email") or "").strip()
+        existing_user = (
+            User.objects.filter(email__iexact=email).first() if email else None
+        )
+
+        address_serializer = BillingAddressSerializer(data=params)
+        profile_serializer = CreateProfileSerializer(data=params)
+        user_serializer = None
+        data = {}
+        if existing_user:
+            if Profile.objects.filter(user=existing_user, org=target_org).exists():
+                data["user_errors"] = {
+                    "email": ["User already belongs to this organization."]
+                }
+        else:
+            user_serializer = CreateUserSerializer(data=params, org=target_org)
             if not user_serializer.is_valid():
                 data["user_errors"] = dict(user_serializer.errors)
-            if not profile_serializer.is_valid():
-                data["profile_errors"] = profile_serializer.errors
-            if not address_serializer.is_valid():
-                data["address_errors"] = (address_serializer.errors,)
-            if data:
-                return Response(
-                    {"error": True, "errors": data},
-                    status=status.HTTP_400_BAD_REQUEST,
+        if not profile_serializer.is_valid():
+            data["profile_errors"] = profile_serializer.errors
+        if not address_serializer.is_valid():
+            data["address_errors"] = (address_serializer.errors,)
+        if data:
+            return Response(
+                {"error": True, "errors": data},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            # The `address` table is RLS-protected: a row only inserts when its
+            # org_id matches the session's `app.current_org` (set by middleware
+            # to the caller's current org). When creating into a different org
+            # we point that context at the target org for this transaction so
+            # the insert passes the policy. `is_local=true` reverts it on commit.
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT set_config('app.current_org', %s, true)",
+                    [str(target_org.id)],
                 )
-            if address_serializer.is_valid():
-                address_obj = address_serializer.save(org=request.profile.org)
-                user = user_serializer.save(
-                    is_active=True,
-                )
-                user.email = user.email
-                user.save()
-                Profile.objects.create(
-                    user=user,
-                    date_of_joining=timezone.now(),
-                    role=params.get("role"),
-                    address=address_obj,
-                    org=request.profile.org,
-                )
-                return Response(
-                    {"error": False, "message": "User Created Successfully"},
-                    status=status.HTTP_201_CREATED,
-                )
+            address_obj = address_serializer.save(org=target_org)
+            if existing_user:
+                user = existing_user
+            else:
+                user = user_serializer.save(is_active=True)
+            Profile.objects.create(
+                user=user,
+                date_of_joining=timezone.now(),
+                role=params.get("role"),
+                address=address_obj,
+                org=target_org,
+            )
         return Response(
-            {"error": True, "errors": "Invalid request"},
-            status=status.HTTP_400_BAD_REQUEST,
+            {
+                "error": False,
+                "message": "User Created Successfully",
+                "org_id": str(target_org.id),
+            },
+            status=status.HTTP_201_CREATED,
         )
 
     @extend_schema(
