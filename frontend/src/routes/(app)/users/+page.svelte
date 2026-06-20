@@ -49,6 +49,7 @@
               : new Date(u.profile.created_at).toISOString().slice(0, 10)
             : '',
           avatar: u.profile?.profile_photo || '',
+          organizations: u.profile?.organizations || [],
           isSelf: loggedInUserId === u.user.id,
           isActive: u.isActive
         }))
@@ -388,6 +389,7 @@
                     <Table.Row>
                       <Table.Head class="w-[300px]">Member</Table.Head>
                       <Table.Head>Role</Table.Head>
+                      <Table.Head>Organizations</Table.Head>
                       <Table.Head>Joined</Table.Head>
                       <Table.Head class="w-[80px]">Actions</Table.Head>
                     </Table.Row>
@@ -477,6 +479,25 @@
                           {/if}
                         </Table.Cell>
                         <Table.Cell>
+                          {#if user.organizations.length}
+                            <div class="flex flex-wrap gap-1">
+                              {#each user.organizations as org (org.id)}
+                                <Badge
+                                  variant={org.id === data.organization?.id
+                                    ? 'secondary'
+                                    : 'outline'}
+                                  class="text-xs font-normal"
+                                  title={`Role: ${org.role}`}
+                                >
+                                  {org.name}
+                                </Badge>
+                              {/each}
+                            </div>
+                          {:else}
+                            <span class="text-muted-foreground text-sm">—</span>
+                          {/if}
+                        </Table.Cell>
+                        <Table.Cell>
                           <span class="text-muted-foreground text-sm"
                             >{formatDate(user.joined)}</span
                           >
@@ -530,7 +551,7 @@
 
                     {#if users.length === 0}
                       <Table.Row>
-                        <Table.Cell colspan={4} class="py-8 text-center">
+                        <Table.Cell colspan={5} class="py-8 text-center">
                           <Users class="text-muted-foreground/50 mx-auto h-8 w-8" />
                           <p class="text-muted-foreground mt-2 text-sm">No team members found</p>
                         </Table.Cell>

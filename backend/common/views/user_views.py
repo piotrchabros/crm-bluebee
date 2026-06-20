@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
@@ -233,6 +235,7 @@ class UsersListView(APIView, LimitOffsetPagination):
             queryset_active_users.distinct(), self.request, view=self
         )
         active_users = ProfileSerializer(results_active_users, many=True).data
+        self._attach_organizations(results_active_users, active_users)
         if results_active_users:
             offset = queryset_active_users.filter(
                 id__gte=results_active_users[-1].id
@@ -252,6 +255,7 @@ class UsersListView(APIView, LimitOffsetPagination):
             queryset_inactive_users.distinct(), self.request, view=self
         )
         inactive_users = ProfileSerializer(results_inactive_users, many=True).data
+        self._attach_organizations(results_inactive_users, inactive_users)
         if results_inactive_users:
             offset = queryset_inactive_users.filter(
                 id__gte=results_inactive_users[-1].id
@@ -270,6 +274,30 @@ class UsersListView(APIView, LimitOffsetPagination):
         context["roles"] = ROLES
         context["status"] = [("True", "Active"), ("False", "In Active")]
         return Response(context)
+
+    @staticmethod
+    def _attach_organizations(profile_objs, serialized_rows):
+        """Add an `organizations` list to each serialized row listing every org
+        the user belongs to (across all orgs, since a user can hold a Profile in
+        many). `profile_objs` and `serialized_rows` are parallel/ordered. The
+        `profile` table is not RLS-restricted, so the cross-org lookup is one
+        extra query regardless of the caller's current org context.
+        """
+        user_ids = [p.user_id for p in profile_objs]
+        if not user_ids:
+            return
+        org_map = defaultdict(list)
+        memberships = (
+            Profile.objects.filter(user_id__in=user_ids, is_active=True)
+            .select_related("org")
+            .order_by("org__name")
+        )
+        for m in memberships:
+            org_map[m.user_id].append(
+                {"id": str(m.org_id), "name": m.org.name, "role": m.role}
+            )
+        for prof, row in zip(profile_objs, serialized_rows):
+            row["organizations"] = org_map.get(prof.user_id, [])
 
 
 class UserDetailView(APIView):
