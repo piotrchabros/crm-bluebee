@@ -2,21 +2,15 @@
   import '../../../app.css';
   import { enhance } from '$app/forms';
 
-  import imgGoogle from '$lib/assets/images/google.svg';
   import imgLogo from '$lib/assets/images/logo.png';
   import { ArrowRight } from '@lucide/svelte';
 
   let { data = {} } = $props();
 
-  let isLoading = $state(false);
   let email = $state('');
   let magicLinkSent = $state(false);
   let isSendingLink = $state(false);
   let magicLinkError = $state('');
-
-  function handleGoogleLogin() {
-    isLoading = true;
-  }
 
   function handleMagicLink() {
     isSendingLink = true;
@@ -54,27 +48,6 @@
     <!-- Login Card -->
     <div class="login-card">
       <h1 class="login-title">Sign in to your account</h1>
-
-      <!-- Google Sign In -->
-      <a
-        href={data['google_url']}
-        onclick={handleGoogleLogin}
-        class="google-btn"
-        class:loading={isLoading}
-      >
-        {#if isLoading}
-          <span class="spinner"></span>
-          <span>Redirecting...</span>
-        {:else}
-          <img src={imgGoogle} alt="" class="google-icon" />
-          <span>Continue with Google</span>
-        {/if}
-      </a>
-
-      <!-- Divider -->
-      <div class="divider">
-        <span>or</span>
-      </div>
 
       <!-- Magic Link -->
       {#if magicLinkSent}
@@ -186,46 +159,6 @@
     letter-spacing: -0.01em;
   }
 
-  /* Google Button */
-  .google-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    width: 100%;
-    height: 48px;
-    background: #ff7a59;
-    border: none;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-  }
-
-  .google-btn:hover {
-    background: #ff5c35;
-  }
-
-  .google-btn:active {
-    background: #e8532d;
-  }
-
-  .google-btn.loading {
-    pointer-events: none;
-    opacity: 0.85;
-  }
-
-  .google-icon {
-    width: 20px;
-    height: 20px;
-    background: #fff;
-    border-radius: 3px;
-    padding: 2px;
-  }
-
   .spinner {
     width: 18px;
     height: 18px;
@@ -241,27 +174,6 @@
     }
   }
 
-  /* Divider */
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin: 1.5rem 0;
-  }
-
-  .divider::before,
-  .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #cbd6e2;
-  }
-
-  .divider span {
-    font-size: 0.8125rem;
-    color: #7c98b6;
-    text-transform: lowercase;
-  }
 
   /* Magic Link Form */
   .magic-link-form {
@@ -419,15 +331,6 @@
 
   :global(.dark) .login-title {
     color: #fff;
-  }
-
-  :global(.dark) .divider::before,
-  :global(.dark) .divider::after {
-    background: #404040;
-  }
-
-  :global(.dark) .divider span {
-    color: #888;
   }
 
   :global(.dark) .email-input {
