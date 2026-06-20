@@ -81,10 +81,30 @@
 
   // Handle form results
   $effect(() => {
-    if (form?.success) {
-      if (form.action === 'add_user') {
-        toast.success('Member added successfully');
-      } else if (form.action === 'create_team') {
+    if (!form) {
+      isTeamLoading = false;
+      return;
+    }
+
+    // Adding a member can target several orgs at once: report each outcome.
+    if (form.action === 'add_user') {
+      const nameOf = (id) =>
+        data.availableOrgs?.find((o) => o.id === id)?.name || 'organization';
+      const okNames = (form.succeeded || []).map(nameOf);
+      const failures = form.failed || [];
+      if (okNames.length) {
+        toast.success(`Member added to ${okNames.join(', ')}`);
+      }
+      for (const f of failures) {
+        toast.error(`${nameOf(f.orgId)}: ${f.msg}`);
+      }
+      if (okNames.length) invalidateAll();
+      isTeamLoading = false;
+      return;
+    }
+
+    if (form.success) {
+      if (form.action === 'create_team') {
         toast.success('Team created successfully');
         teamDialogOpen = false;
         editingTeam = null;
@@ -100,7 +120,7 @@
         toast.success('User activated');
       }
       invalidateAll();
-    } else if (form?.error) {
+    } else if (form.error) {
       toast.error(form.error);
     }
     isTeamLoading = false;
@@ -282,37 +302,64 @@
                 </div>
               </div>
             {/snippet}
-              <form
-                method="POST"
-                action="?/add_user"
-                class="flex flex-col gap-4 sm:flex-row sm:items-end"
-              >
-                <div class="flex-1">
-                  <Label class="" for="add-user-email">Email Address *</Label>
-                  <Input
-                    id="add-user-email"
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="user@example.com"
-                    class="mt-1.5"
-                  />
+              <form method="POST" action="?/add_user" use:enhance class="flex flex-col gap-4">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
+                  <div class="flex-1">
+                    <Label class="" for="add-user-email">Email Address *</Label>
+                    <Input
+                      id="add-user-email"
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="user@example.com"
+                      class="mt-1.5"
+                    />
+                  </div>
+                  <div class="sm:w-40">
+                    <Label class="" for="add-user-role">Role</Label>
+                    <select
+                      id="add-user-role"
+                      name="role"
+                      class="border-input bg-background ring-offset-background focus-visible:ring-ring mt-1.5 flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    >
+                      <option value="USER">User</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                  </div>
+                  <Button type="submit">
+                    <Plus class="mr-2 h-4 w-4" />
+                    Add Member
+                  </Button>
                 </div>
-                <div class="sm:w-40">
-                  <Label class="" for="add-user-role">Role</Label>
-                  <select
-                    id="add-user-role"
-                    name="role"
-                    class="border-input bg-background ring-offset-background focus-visible:ring-ring mt-1.5 flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                  >
-                    <option value="USER">User</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                </div>
-                <Button type="submit">
-                  <Plus class="mr-2 h-4 w-4" />
-                  Add Member
-                </Button>
+
+                {#if data.availableOrgs && data.availableOrgs.length > 1}
+                  <div>
+                    <Label class="">Organizations</Label>
+                    <p class="mt-0.5 text-[12px] text-[color:var(--text-muted)]">
+                      Add this member to one or more organizations you administer. The
+                      same role is applied to each.
+                    </p>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      {#each data.availableOrgs as o (o.id)}
+                        <label
+                          class="border-input bg-background hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            name="org_ids"
+                            value={o.id}
+                            checked={o.isCurrent}
+                            class="border-input h-4 w-4 rounded accent-[var(--color-primary-default)]"
+                          />
+                          <span>{o.name}</span>
+                          {#if o.isCurrent}
+                            <Badge variant="secondary" class="text-[10px]">Current</Badge>
+                          {/if}
+                        </label>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
               </form>
           </SectionCard>
 

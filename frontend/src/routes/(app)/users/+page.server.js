@@ -22,7 +22,7 @@
  * - DELETE /api/teams/{id}/             - Delete team
  */
 
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
 
 const API_BASE_URL = `${env.PUBLIC_DJANGO_API_URL}/api`;
@@ -80,10 +80,11 @@ export async function load({ locals, cookies }) {
   const user = locals.user;
 
   try {
-    // Fetch users and teams in parallel
-    const [usersData, teamsData] = await Promise.all([
+    // Fetch users, teams, and the caller's org memberships in parallel
+    const [usersData, teamsData, meData] = await Promise.all([
       apiRequest('/users/', {}, { cookies, org }),
-      apiRequest('/teams/', {}, { cookies, org }).catch(() => ({ teams: [] }))
+      apiRequest('/teams/', {}, { cookies, org }).catch(() => ({ teams: [] })),
+      apiRequest('/auth/me/', {}, { cookies, org }).catch(() => ({ organizations: [] }))
     ]);
 
     // Django returns: { active_users: {...}, inactive_users: {...}, roles: [...] }
@@ -140,6 +141,14 @@ export async function load({ locals, cookies }) {
       userIds: (team.users || []).map((u) => u.id)
     }));
 
+    // Organizations the caller may add users to: those where they are an admin
+    // (current org first). Backed by POST /api/users/ org_id targeting, which
+    // requires the caller to be an admin of the target org.
+    const availableOrgs = (meData.organizations || [])
+      .filter((o) => o.role === 'ADMIN' || o.is_organization_admin)
+      .map((o) => ({ id: o.id, name: o.name, isCurrent: o.id === org.id }))
+      .sort((a, b) => (a.isCurrent ? -1 : b.isCurrent ? 1 : a.name.localeCompare(b.name)));
+
     return {
       organization: {
         id: org.id,
@@ -149,6 +158,7 @@ export async function load({ locals, cookies }) {
       },
       users: allUsers,
       teams,
+      availableOrgs,
       user: { id: user.id }
     };
   } catch (err) {
@@ -169,43 +179,52 @@ export const actions = {
   add_user: async ({ request, locals, cookies }) => {
     const org = locals.org;
 
-    try {
-      const formData = await request.formData();
-      const email = formData.get('email')?.toString().trim().toLowerCase();
-      const role = formData.get('role')?.toString();
+    const formData = await request.formData();
+    const email = formData.get('email')?.toString().trim().toLowerCase();
+    const role = formData.get('role')?.toString();
+    // One or more target orgs. Empty selection falls back to the current org.
+    let orgIds = formData
+      .getAll('org_ids')
+      .map((v) => v.toString())
+      .filter(Boolean);
 
-      if (!email || !role) {
-        return fail(400, { error: 'Email and role are required' });
-      }
-
-      // Create user via Django API
-      // Django endpoint: POST /api/users/
-      const userData = { email, role };
-
-      await apiRequest(
-        '/users/',
-        {
-          method: 'POST',
-          body: JSON.stringify(userData)
-        },
-        { cookies, org }
-      );
-
-      return { success: true, action: 'add_user' };
-    } catch (err) {
-      console.error('Error adding user:', err);
-      // Check for specific error messages
-      if (
-        err.message.includes('already exists') ||
-        err.message.includes('already in organization')
-      ) {
-        return fail(400, { error: 'User already in organization' });
-      }
-      if (err.message.includes('not found')) {
-        return fail(404, { error: 'No user found with that email' });
-      }
-      return fail(500, { error: err.message || 'Failed to add user' });
+    if (!email || !role) {
+      return fail(400, { error: 'Email and role are required' });
     }
+    if (orgIds.length === 0) orgIds = [org.id];
+    orgIds = [...new Set(orgIds)];
+
+    // Add the user to each selected org independently so one failure doesn't
+    // abort the rest. org_id is sent only for orgs other than the current one
+    // (the backend uses the JWT org context by default).
+    const succeeded = [];
+    const failed = [];
+    for (const orgId of orgIds) {
+      const body = { email, role };
+      if (orgId !== org.id) body.org_id = orgId;
+      try {
+        await apiRequest(
+          '/users/',
+          { method: 'POST', body: JSON.stringify(body) },
+          { cookies, org }
+        );
+        succeeded.push(orgId);
+      } catch (err) {
+        const raw = err.message || 'Failed to add user';
+        let msg = raw;
+        if (/already exists|already belongs|already in organization/i.test(raw)) {
+          msg = 'already a member';
+        } else if (/not an admin/i.test(raw)) {
+          msg = 'you are not an admin of this org';
+        } else if (/not found/i.test(raw)) {
+          msg = 'organization not found';
+        }
+        console.error(`Error adding user to org ${orgId}:`, raw);
+        failed.push({ orgId, msg });
+      }
+    }
+
+    return { action: 'add_user', succeeded, failed };
   },
 
   /**
