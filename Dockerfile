@@ -22,7 +22,8 @@ COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /usr/local/bin/uv
 
 # Install Python dependencies into /app/.venv (layer cached on lockfile changes)
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
-RUN uv sync --frozen --no-install-project
+COPY mcp_server/ ../mcp_server/
+RUN uv sync --extra mcp --no-install-project
 
 # Copy backend source
 COPY backend/ .

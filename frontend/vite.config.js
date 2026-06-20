@@ -14,5 +14,13 @@ export default defineConfig(({ mode }) => {
       },
       autoUploadSourceMaps: !!env.PUBLIC_SENTRY_DSN
     }), tailwindcss(), sveltekit()],
+
+    server: {
+      allowedHosts: [
+        "crm.bluebee.marketing",
+        "localhost",
+        "127.0.0.1",
+      ],
+    },
   };
 });

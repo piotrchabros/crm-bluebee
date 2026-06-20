@@ -334,12 +334,12 @@
           oninput={handleInput}
           {placeholder}
           disabled={!editable}
-          rows={3}
+          rows={20}
           aria-labelledby={labelId}
           aria-required={required ? 'true' : undefined}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={error ? errorId : undefined}
-          class="text-foreground placeholder:text-muted-foreground/40 focus:bg-muted/30 focus:ring-primary/20 w-full resize-none rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-sm transition-all outline-none focus:ring-1 aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive/40"
+          class="text-foreground placeholder:text-muted-foreground/40 focus:bg-muted/30 focus:ring-primary/20 w-full resize-y rounded-lg border-0 bg-transparent px-2.5 py-1.5 text-sm transition-all outline-none focus:ring-1 aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive/40"
           >{value || ''}</textarea
         >
       {:else if isReadonlySelect}

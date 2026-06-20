@@ -78,3 +78,21 @@ CLAUDE.md
 TODO.md
 .playwright-mcp
 .superpowers/
+
+# Local scratch/debug scripts (not for repo)
+/check_users.py*
+/fix_rate.py
+/test_smtp.py
+backend/check_users.py
+backend/chk_full.py
+backend/chk_profiles.py
+backend/fix_profiles.py
+backend/make_admin.py
+backend/set_password.py
+backend/test_smtp.py
+
+# pnpm local store
+frontend/.pnpm-store/
+
+# local docker compose override
+docker-compose.override.yml

@@ -1,13 +1,15 @@
 <script>
   import '../../../../app.css';
   import imgLogo from '$lib/assets/images/logo.png';
+  import { enhance } from '$app/forms';
 
-  let { data } = $props();
+  let { data, form } = $props();
 </script>
 
 <svelte:head>
   <title>Verify Sign-in | BottleCRM</title>
   <meta name="referrer" content="no-referrer" />
+  <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
 <div class="verify-page">
@@ -18,10 +20,23 @@
     </a>
 
     <div class="verify-card">
-      {#if data.error}
+      {#if form?.error}
         <h1 class="verify-title">Link expired or invalid</h1>
+        <p class="verify-message">{form.error}</p>
+        <a href="/login" class="back-link">Back to login</a>
+      {:else if data.error}
+        <h1 class="verify-title">Invalid link</h1>
         <p class="verify-message">{data.error}</p>
         <a href="/login" class="back-link">Back to login</a>
+      {:else if data.token}
+        <h1 class="verify-title">Sign in to BottleCRM</h1>
+        <p class="verify-message">Click the button below to sign in securely.</p>
+        <form method="POST" use:enhance>
+          <input type="hidden" name="token" value={data.token} />
+          <button type="submit" class="signin-btn">
+            Sign In
+          </button>
+        </form>
       {:else}
         <h1 class="verify-title">Signing you in...</h1>
         <div class="spinner-large"></div>
@@ -105,6 +120,25 @@
 
   .back-link:hover {
     text-decoration: underline;
+  }
+
+  .signin-btn {
+    display: inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding: 0.75rem 2.5rem;
+    background: #ff7a59;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .signin-btn:hover {
+    background: #e86945;
   }
 
   .spinner-large {

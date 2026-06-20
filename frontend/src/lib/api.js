@@ -9,14 +9,17 @@
 
 import { env } from '$env/dynamic/public';
 import { goto } from '$app/navigation';
+import { browser } from '$app/environment';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// API Base URL from environment variables
-// Note: VITE_ prefix is required for client-side env vars
-const API_BASE_URL = env.PUBLIC_DJANGO_API_URL
-  ? `${env.PUBLIC_DJANGO_API_URL}/api`
-  : 'http://localhost:8000/api';
+// API Base URL: relative in browser (Caddy proxies /api to backend),
+// env var on server (internal Docker network)
+const API_BASE_URL = browser
+  ? '/api'
+  : env.PUBLIC_DJANGO_API_URL
+    ? `${env.PUBLIC_DJANGO_API_URL}/api`
+    : 'http://localhost:8000/api';
 
 /**
  * Storage keys for tokens and org

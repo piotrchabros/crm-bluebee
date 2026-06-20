@@ -127,6 +127,11 @@ class GoogleOAuthCallbackView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
+            if not settings.ALLOW_PUBLIC_REGISTRATION:
+                return Response(
+                    {"error": "Account not found. Contact your administrator for access."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             user = User.objects.create(
                 email=email,
                 name=google_name,
@@ -224,14 +229,20 @@ class GoogleIdTokenView(APIView):
             )
 
         # Get or create user
-        user, _created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "name": google_name,
-                "profile_pic": picture,
-                "password": make_password(secrets.token_urlsafe(32)),
-            },
-        )
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            if not settings.ALLOW_PUBLIC_REGISTRATION:
+                return Response(
+                    {"error": "Account not found. Contact your administrator for access."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            user = User.objects.create(
+                email=email,
+                name=google_name,
+                profile_pic=picture,
+                password=make_password(secrets.token_urlsafe(32)),
+            )
         # Backfill name from Google for existing users who don't have one.
         if not user.name and google_name:
             user.name = google_name
@@ -612,6 +623,11 @@ class MagicLinkVerifyView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
+            if not settings.ALLOW_PUBLIC_REGISTRATION:
+                return Response(
+                    {"error": "Account not found. Contact your administrator for access."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             user = User.objects.create(
                 email=email,
                 password=make_password(secrets.token_urlsafe(32)),
@@ -745,6 +761,11 @@ class MagicLinkVerifyCodeView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
+            if not settings.ALLOW_PUBLIC_REGISTRATION:
+                return Response(
+                    {"error": "Account not found. Contact your administrator for access."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             user = User.objects.create(
                 email=email,
                 password=make_password(secrets.token_urlsafe(32)),
