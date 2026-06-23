@@ -12,16 +12,23 @@ Precedence: `spec.md` > `Plans.md`.
 
 ---
 
+> **2026-06-23 findings correction (after code re-verification):** the backend
+> is ~90% pre-built. ALL FOUR entities + cases already persist uploads on
+> create & update, list attachments, and have delete views. So 1.2/1.3 were
+> already implemented. The genuine gaps were: file validation (1.1), a delete
+> permission bug (1.4), and media backup (1.6). The real remaining work is the
+> **frontend** (Phases 2–3).
+
 ## Phase 1: Backend completion & hardening
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 1.1 | Add shared attachment validator in `common` (size ≤ 10MB, extension/MIME allowlist per spec; reject executables). One reusable function/serializer-validator used by every save path. [tdd:required] | Unit tests: oversize rejected, disallowed ext rejected, allowed types pass; validator importable from `common`. | - | cc:TODO |
-| 1.2 | leads: persist uploaded `lead_attachment` on create & update (copy `cases/views.py` pattern; set `content_object`, `created_by`, `org`); run validator from 1.1. | POST multipart to lead create/update saves an `Attachments` row linked to the lead; appears in detail response; test passes. | 1.1 | cc:TODO |
-| 1.3 | opportunity: add `opportunity_attachment` read field to serializer **and** persist upload on create & update; run validator. | Opportunity detail serializer returns `opportunity_attachment` list; upload saves linked row; test passes. | 1.1 | cc:TODO |
-| 1.4 | Enforce delete permission (uploader `created_by` OR org ADMIN) in all `*AttachmentView` (Lead/Contact/Account/Opportunity/Case). | Non-uploader non-admin DELETE → 403; uploader → 204/200; admin → 204/200; tests cover all three. [tdd:required] | - | cc:TODO |
-| 1.5 | Confirm contacts + accounts save paths already meet spec (regression guard) and that all four delete endpoints are routed. | Test matrix: upload+list+delete green for leads/contacts/accounts/opportunities. | 1.2, 1.3, 1.4 | cc:TODO |
-| 1.6 | ops: extend daily backup to include `backend/media/` (attachments). [tdd:skip:ops-config] | `crm-bluebee-backup.sh` archives media dir; restore guide updated; Spec skip reason recorded (ops/no app behavior). | - | cc:TODO |
+| 1.1 | Add shared attachment validator in `common` (size ≤ 10MB, extension allowlist; reject executables). Enforced via `Attachments.clean()` (called by `full_clean()` in `save()`) so every save path is covered. [tdd:required] | Unit tests: oversize rejected, disallowed ext rejected, allowed types pass. ✅ 8 tests pass. | - | cc:完了 [68c26cd] |
+| 1.2 | leads: persist uploaded `lead_attachment` on create & update. | **Already implemented** (`lead_views.py:292`, `:568`). Verified by existing tests + live behavior; now also covered by validation. | 1.1 | cc:完了 [pre-existing] |
+| 1.3 | opportunity: persist upload on create & update; return attachments in detail. | **Already implemented** (`opportunity_views.py:299`, `:472`; attachments returned in view response dict, frontend already reads them). | 1.1 | cc:完了 [pre-existing] |
+| 1.4 | Fix delete permission so uploader can delete (was `profile == created_by`, Profile vs User → always False; only ADMIN could delete). Now `profile.user == created_by` in Contact/Account/Case/Opportunity views (Lead already correct). | Non-uploader non-admin DELETE → 403; uploader → 200; admin → 200. ✅ delete-perm tests pass. | - | cc:完了 [68c26cd] |
+| 1.5 | Regression guard across all entities + custom 400 handler for Django ValidationError. | ✅ 39 existing attachment tests + 8 validation tests pass; live disallowed upload returns 400 (after deploy/reload). | 1.2, 1.3, 1.4 | cc:WIP |
+| 1.6 | ops: extend daily backup to include `backend/media/` (attachments). [tdd:skip:ops-config] | `crm-bluebee-backup.sh` archives media dir; restore guide updated. | - | cc:TODO |
 
 ## Phase 2: Frontend API client + shared component
 
