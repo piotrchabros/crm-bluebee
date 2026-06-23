@@ -398,12 +398,17 @@ class Attachments(BaseModel):
 
     def clean(self):
         """
-        Validate that the attachment's org matches the content object's org.
+        Validate that the attachment's org matches the content object's org,
+        and that the uploaded file meets the size/type limits.
 
         SECURITY: This prevents cross-org data references where an attachment
-        in org_a could reference an object in org_b.
+        in org_a could reference an object in org_b. Called via full_clean()
+        from save(), so file validation here is the server-side trust boundary
+        for every save path (API views, admin, MCP).
         """
         from django.core.exceptions import ValidationError
+
+        from common.validators import validate_attachment_file
 
         if self.content_object and hasattr(self.content_object, "org"):
             if self.content_object.org_id != self.org_id:
@@ -412,6 +417,12 @@ class Attachments(BaseModel):
                         "org": "Attachment organization must match the referenced object's organization."
                     }
                 )
+
+        if self.attachment:
+            try:
+                validate_attachment_file(self.attachment)
+            except ValidationError as exc:
+                raise ValidationError({"attachment": exc.messages})
 
     def save(self, *args, **kwargs):
         self.full_clean()

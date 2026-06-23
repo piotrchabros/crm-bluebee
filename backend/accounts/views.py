@@ -875,7 +875,7 @@ class AccountAttachmentView(APIView):
         if (
             request.profile.role == "ADMIN"
             or request.profile.is_admin
-            or request.profile == self.object.created_by
+            or request.profile.user == self.object.created_by
         ):
             self.object.delete()
             return Response(

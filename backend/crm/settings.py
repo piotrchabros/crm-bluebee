@@ -254,7 +254,7 @@ APPLICATION_NAME = "bottlecrm"
 SETTINGS_EXPORT = ["APPLICATION_NAME"]
 
 REST_FRAMEWORK = {
-    "EXCEPTION_HANDLER": "rest_framework.views.exception_handler",
+    "EXCEPTION_HANDLER": "common.exception_handlers.custom_exception_handler",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "common.pat_auth.PATAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
