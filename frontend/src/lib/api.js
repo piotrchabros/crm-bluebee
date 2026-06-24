@@ -303,7 +303,7 @@ const ATTACHMENT_FIELDS = {
   leads: 'lead_attachment',
   contacts: 'contact_attachment',
   accounts: 'account_attachment',
-  opportunity: 'opportunity_attachment',
+  opportunities: 'opportunity_attachment',
   cases: 'case_attachment'
 };
 
@@ -459,7 +459,7 @@ function createCrudApi(entityPath) {
 export const accounts = createCrudApi('accounts');
 export const leads = createCrudApi('leads');
 export const contacts = createCrudApi('contacts');
-export const opportunities = createCrudApi('opportunity');
+export const opportunities = createCrudApi('opportunities');
 export const tickets = createCrudApi('cases');
 export const tasks = createCrudApi('tasks');
 export const events = createCrudApi('events');
