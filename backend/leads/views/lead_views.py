@@ -565,17 +565,16 @@ class LeadDetailView(APIView):
                 org=self.request.profile.org,
             )
 
-            if self.request.FILES.get("lead_attachment"):
-                attachment = Attachments()
-                attachment.created_by = User.objects.get(
-                    id=self.request.profile.user.id
-                )
-
-                attachment.file_name = self.request.FILES.get("lead_attachment").name
-                attachment.content_object = self.lead_obj
-                attachment.attachment = self.request.FILES.get("lead_attachment")
-                attachment.org = self.request.profile.org
-                attachment.save()
+        # Attachment upload is independent of comments: a file can be attached
+        # to an existing lead without also posting a comment.
+        if self.request.FILES.get("lead_attachment"):
+            attachment = Attachments()
+            attachment.created_by = User.objects.get(id=self.request.profile.user.id)
+            attachment.file_name = self.request.FILES.get("lead_attachment").name
+            attachment.content_object = self.lead_obj
+            attachment.attachment = self.request.FILES.get("lead_attachment")
+            attachment.org = self.request.profile.org
+            attachment.save()
 
         lead_content_type = ContentType.objects.get_for_model(Lead)
         comments = Comment.objects.filter(
