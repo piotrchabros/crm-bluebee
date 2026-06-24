@@ -119,7 +119,7 @@ in each entity's drawer column set.
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 8.1 | Cross-entity QA: row-click navigation, field parity vs drawer, inline edit save/revert, notes rendering, relation new-tab, deep-link redirects — across all 4 entities. | All four entities pass the click-through; no field regressions vs drawer; vite/build clean. | Phase 7 | cc:完了 [verified] |
+| 8.1 | Cross-entity QA: row-click navigation, field parity vs drawer, inline edit save/revert, notes rendering, relation new-tab, deep-link redirects — across all 4 entities. ✅ prod build green; all 4 detail+list routes SSR with no 500; field parity + EditableField wiring verified per page. ⚠️ live browser click-through still needs owner login (cannot authenticate as a user). | All four entities pass the click-through; no field regressions vs drawer; vite/build clean. | Phase 7 | cc:WIP |
 | 8.2 | Security/permission verification: Notes Markdown sanitization blocks `<script>`/event-handler injection; inline edit obeys existing RLS/role (no new privilege); a user without update rights cannot PATCH a field. | Injection payloads stripped in rendered notes; unauthorized PATCH → 403; no privilege escalation. | 6.2, Phase 7 | cc:完了 [verified] |
 
 ---
