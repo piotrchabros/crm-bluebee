@@ -167,11 +167,11 @@ related record in a **new browser tab**.
 
 ---
 
-## Feature: Comments on deals (opportunities)
+## Feature: Comments on records (deals, leads, accounts, contacts)
 
 > Added 2026-06-24.
 
-On the opportunity (deal) detail page, users can read and post comments.
+On the deal, lead, account, and contact detail pages, users can read and post comments. (Endpoints are per-entity: POST /<entity>/<id>/ to create, PATCH/DELETE /<entity>/comment/<commentId>/ to edit/remove.)
 
 - **List**: each comment shows author, relative date, and text rendered as
   sanitized Markdown (same allowlist as Notes), newest first.
