@@ -155,7 +155,7 @@ async function refreshAccessToken() {
  * Make an authenticated API request
  *
  * @param {string} endpoint - API endpoint (e.g., '/accounts/', '/leads/123/')
- * @param {{ method?: string, body?: Record<string, unknown> | null, headers?: Record<string, string>, requiresAuth?: boolean }} [options] - Fetch options
+ * @param {{ method?: string, body?: Record<string, unknown> | FormData | null, headers?: Record<string, string>, requiresAuth?: boolean }} [options] - Fetch options
  * @returns {Promise<any>} Response data
  * @throws {Error} If request fails
  */

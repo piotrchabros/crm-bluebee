@@ -1,5 +1,6 @@
 <script>
   import { invalidateAll } from '$app/navigation';
+  import { deserialize } from '$app/forms';
   import { Paperclip, Upload, Trash2, Loader2 } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button/index.js';
   import { toast } from 'svelte-sonner';
@@ -71,7 +72,13 @@
     }
     uploading = true;
     try {
-      await api.uploadAttachment(recordId, file);
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('?/uploadAttachment', { method: 'POST', body: fd });
+      /** @type {any} */
+      const result = deserialize(await res.text());
+      if (result.type === 'failure') throw new Error(result.data?.error || 'Upload failed');
+      if (result.type === 'error') throw new Error(result.error?.message || 'Upload failed');
       toast.success(`Uploaded ${file.name}`);
       await invalidateAll();
     } catch (/** @type {any} */ err2) {
@@ -87,7 +94,13 @@
     if (!confirm(`Delete "${att.file_name || 'this file'}"? This cannot be undone.`)) return;
     deletingId = att.id;
     try {
-      await api.deleteAttachment(att.id);
+      const fd = new FormData();
+      fd.append('attachmentId', att.id);
+      const res = await fetch('?/deleteAttachment', { method: 'POST', body: fd });
+      /** @type {any} */
+      const result = deserialize(await res.text());
+      if (result.type === 'failure') throw new Error(result.data?.error || 'Delete failed');
+      if (result.type === 'error') throw new Error(result.error?.message || 'Delete failed');
       toast.success('Attachment deleted');
       await invalidateAll();
     } catch (/** @type {any} */ err) {

@@ -44,6 +44,32 @@ export async function load({ params, locals, cookies }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+  uploadAttachment: async ({ request, params, locals, cookies }) => {
+    const form = await request.formData();
+    const file = form.get('file');
+    if (!file || typeof file === 'string') return fail(400, { error: 'No file provided' });
+    const fd = new FormData();
+    fd.append('opportunity_attachment', file);
+    try {
+      await apiRequest(`/opportunities/${params.id}/`, { method: 'POST', body: fd }, { cookies, org: locals.org });
+      return { success: true };
+    } catch (err) {
+      console.error('Upload opportunities attachment error:', err);
+      return fail(400, { error: /** @type {any} */ (err)?.message || 'Failed to upload attachment' });
+    }
+  },
+  deleteAttachment: async ({ request, locals, cookies }) => {
+    const form = await request.formData();
+    const attachmentId = form.get('attachmentId')?.toString();
+    if (!attachmentId) return fail(400, { error: 'Missing attachment id' });
+    try {
+      await apiRequest(`/opportunities/attachment/${attachmentId}/`, { method: 'DELETE' }, { cookies, org: locals.org });
+      return { success: true };
+    } catch (err) {
+      console.error('Delete opportunities attachment error:', err);
+      return fail(400, { error: /** @type {any} */ (err)?.message || 'Failed to delete attachment' });
+    }
+  },
   addComment: async ({ request, params, locals, cookies }) => {
     const form = await request.formData();
     const comment = (form.get('comment')?.toString() || '').trim();

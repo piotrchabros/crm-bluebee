@@ -20,7 +20,7 @@ const API_BASE_URL = `${env.PUBLIC_DJANGO_API_URL}/api`;
  * are managed by hooks and locals contains the user and org context.
  *
  * @param {string} endpoint - API endpoint (e.g., '/accounts/', '/leads/123/')
- * @param {{ method?: string, body?: Record<string, unknown>, headers?: Record<string, string> }} options - Fetch options
+ * @param {{ method?: string, body?: Record<string, unknown> | FormData, headers?: Record<string, string> }} options - Fetch options
  * @param {{ cookies?: Cookies, org?: { id: string } } | Cookies} locals - SvelteKit locals object or cookies directly
  * @returns {Promise<any>} Response data
  * @throws {Error} If request fails
@@ -36,10 +36,12 @@ export async function apiRequest(endpoint, options = {}, locals) {
   );
   const accessToken = cookies?.get?.('jwt_access');
 
-  // Build request headers
+  // Build request headers. FormData bodies must NOT set Content-Type so the
+  // browser/undici sets the multipart boundary itself.
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   /** @type {Record<string, string>} */
   const requestHeaders = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...headers
   };
 
@@ -58,7 +60,7 @@ export async function apiRequest(endpoint, options = {}, locals) {
 
   // Add body for non-GET requests
   if (body && method !== 'GET') {
-    requestOptions.body = JSON.stringify(body);
+    requestOptions.body = isFormData ? body : JSON.stringify(body);
   }
 
   const url = `${API_BASE_URL}${endpoint}`;
