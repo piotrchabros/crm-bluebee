@@ -182,3 +182,25 @@ On the deal, lead, account, and contact detail pages, users can read and post co
   (PATCH/DELETE /opportunities/comment/<commentId>/), returning 403 otherwise.
 - Writes go through SvelteKit server actions (cookie JWT + org context), never
   the client token. The feature adds no new privileges.
+
+---
+
+## Update (2026-06-24): Attachment serving — authenticated, org-scoped
+
+Supersedes the original "files served from /media" note. Attachment files are no
+longer exposed on a public URL. They are streamed through an authenticated proxy
+that enforces org isolation:
+
+- Backend `GET /api/attachments/<id>/download/` (`IsAuthenticated` + org context)
+  streams the file from the local media volume only when
+  `attachment.org == request org`; unknown/cross-org ids return 404.
+- Frontend `/files/<id>` SvelteKit route reads the httpOnly `jwt_access` cookie
+  and proxies the backend download endpoint to the browser; `AttachmentPanel`
+  links to `/files/<id>`.
+- The public `/media/` route and its org-context exemption were removed; direct
+  `/media/...` access now 404s.
+- Storage is unchanged (local `FileSystemStorage` on the media volume); the prod
+  `MEDIA_URL`/S3 settings in `server_settings.py` are legacy/unused on Django 6.
+
+Possible future refinement: per-record view-permission check (currently
+org-level isolation), and signed time-limited URLs.
