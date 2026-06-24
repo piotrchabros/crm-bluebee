@@ -497,7 +497,7 @@
 
   // View mode (list | kanban) — synced with ?view= URL param via server data.
   /** @type {'list' | 'kanban'} */
-  let viewMode = $state('list');
+  let viewMode = $state('kanban');
   $effect(() => {
     if (data.viewMode) viewMode = data.viewMode;
   });
@@ -988,7 +988,7 @@
   async function updateViewMode(mode) {
     viewMode = mode;
     const url = new URL($page.url);
-    if (mode === 'list') {
+    if (mode === 'kanban') {
       url.searchParams.delete('view');
     } else {
       url.searchParams.set('view', mode);

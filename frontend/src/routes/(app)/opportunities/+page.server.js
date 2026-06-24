@@ -27,7 +27,7 @@ export async function load({ locals, cookies, url }) {
   }
 
   // Parse view mode (list | kanban)
-  const viewMode = url.searchParams.get('view') || 'list';
+  const viewMode = url.searchParams.get('view') || 'kanban';
 
   // Parse pagination params from URL
   const page = parseInt(url.searchParams.get('page') || '1');
