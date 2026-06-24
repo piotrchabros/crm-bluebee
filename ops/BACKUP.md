@@ -1,7 +1,8 @@
-# Database Backups
+# Database & Media Backups
 
 Automated daily backups of the `crm_db` PostgreSQL database running in the
-`crm-bluebee-db-1` Docker container.
+`crm-bluebee-db-1` Docker container, plus the uploaded media files
+(attachments, org logos) on the host bind mount.
 
 ## What runs
 
@@ -11,12 +12,13 @@ Automated daily backups of the `crm_db` PostgreSQL database running in the
 - **Output dir:** `/var/backups/crm-bluebee/`
 - **Retention:** 14 days (older dumps are pruned automatically)
 
-Each run produces two files, timestamped `YYYYmmdd_HHMMSS`:
+Each run produces three files, timestamped `YYYYmmdd_HHMMSS`:
 
 | File | Contents | Restore tool |
 |------|----------|--------------|
 | `crm_db_<ts>.dump` | The application database, PostgreSQL **custom format** (compressed) | `pg_restore` |
 | `globals_<ts>.sql.gz` | Global objects — roles incl. `crm_user`/RLS user (gzipped SQL) | `psql` |
+| `media_<ts>.tar.gz` | Uploaded files from `backend/media/` (attachments, logos) — **not** in the DB dump | `tar` |
 
 The script validates every dump (checks the `PGDMP` header, writes to a
 `.partial` file and only promotes it on success) and exits non-zero on failure,
@@ -89,6 +91,26 @@ docker exec crm-bluebee-db-1 \
   pg_restore -U postgres -d crm_db --no-owner /tmp/restore.dump
 docker exec crm-bluebee-db-1 rm -f /tmp/restore.dump
 ```
+
+### Restore uploaded media
+
+Media lives at `MEDIA_ROOT=/media` **inside the backend container**. The tarball
+expands to a `media/` directory; stream it back into the container:
+
+```bash
+MEDIA=/var/backups/crm-bluebee/media_YYYYmmdd_HHMMSS.tar.gz
+gunzip -c "$MEDIA" | docker exec -i crm-bluebee-backend-1 tar -xzf - -C /
+# files land at /media/ inside the container (served at /media/ by the app)
+```
+
+> Restore the database and media from the **same timestamp** so attachment rows
+> and their files stay consistent.
+
+> **Durability note:** unless a persistent volume is mounted at `/media` (see
+> `docker-compose.yml`), the media directory is part of the container's
+> ephemeral layer — it survives `docker compose restart` but is **lost on
+> container recreation** (`down`/`up`, rebuild, `--force-recreate`). Mounting a
+> named volume (e.g. `media_data:/media`) is strongly recommended.
 
 ### Inspect a backup without restoring
 
