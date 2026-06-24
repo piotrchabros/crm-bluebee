@@ -6,13 +6,14 @@
   import * as Tabs from '$lib/components/ui/tabs/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import AttachmentPanel from '$lib/components/attachments/AttachmentPanel.svelte';
+  import RecordComments from '$lib/components/comments/RecordComments.svelte';
   import { formatRelativeDate, formatDate } from '$lib/utils/formatting.js';
   import { COUNTRIES } from '$lib/constants/lead-choices.js';
   import { contacts as contactsApi } from '$lib/api.js';
   import { EditableField } from '$lib/components/ui/editable-field';
   import { RelationLink } from '$lib/components/ui/relation-link';
 
-  /** @type {{ data: { contact: any, attachments: any[], comments: any[], tasks: any[] } }} */
+  /** @type {{ data: { contact: any, attachments: any[], comments: any[], tasks: any[], commentPermission: boolean } }} */
   let { data } = $props();
 
   const contact = $derived(data.contact || {});
@@ -167,6 +168,10 @@
             {@render efRow('Postal code', { field: 'postcode', value: contact?.postcode, placeholder: 'Add postal code' })}
             {@render efRow('Country', { type: 'select', field: 'country', value: contact?.country, options: countryOptions, placeholder: '—' })}
           </div>
+        </SectionCard>
+        <!-- Comments -->
+        <SectionCard title="Comments">
+          <RecordComments comments={data.comments || []} canComment={data.commentPermission} />
         </SectionCard>
       </div>
 

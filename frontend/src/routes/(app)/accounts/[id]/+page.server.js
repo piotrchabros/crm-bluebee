@@ -54,6 +54,43 @@ export async function load({ params, locals, cookies }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+  addComment: async ({ request, params, locals, cookies }) => {
+    const form = await request.formData();
+    const comment = (form.get('comment')?.toString() || '').trim();
+    if (!comment) return fail(400, { error: 'Comment cannot be empty' });
+    try {
+      await apiRequest(`/accounts/${params.id}/`, { method: 'POST', body: { comment } }, { cookies, org: locals.org });
+      return { success: true };
+    } catch (err) {
+      console.error('Add accounts comment error:', err);
+      return fail(400, { error: /** @type {any} */ (err)?.message || 'Failed to add comment' });
+    }
+  },
+  editComment: async ({ request, locals, cookies }) => {
+    const form = await request.formData();
+    const commentId = form.get('commentId')?.toString();
+    const comment = (form.get('comment')?.toString() || '').trim();
+    if (!commentId || !comment) return fail(400, { error: 'Missing comment text' });
+    try {
+      await apiRequest(`/accounts/comment/${commentId}/`, { method: 'PATCH', body: { comment } }, { cookies, org: locals.org });
+      return { success: true };
+    } catch (err) {
+      console.error('Edit accounts comment error:', err);
+      return fail(400, { error: /** @type {any} */ (err)?.message || 'Failed to edit comment' });
+    }
+  },
+  deleteComment: async ({ request, locals, cookies }) => {
+    const form = await request.formData();
+    const commentId = form.get('commentId')?.toString();
+    if (!commentId) return fail(400, { error: 'Missing comment id' });
+    try {
+      await apiRequest(`/accounts/comment/${commentId}/`, { method: 'DELETE' }, { cookies, org: locals.org });
+      return { success: true };
+    } catch (err) {
+      console.error('Delete accounts comment error:', err);
+      return fail(400, { error: /** @type {any} */ (err)?.message || 'Failed to delete comment' });
+    }
+  },
   updateField: async ({ request, params, locals, cookies }) => {
     const form = await request.formData();
     const field = form.get('field')?.toString();

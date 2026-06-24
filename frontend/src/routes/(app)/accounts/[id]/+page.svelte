@@ -31,6 +31,7 @@
   import { SectionCard } from '$lib/components/ui/section-card/index.js';
   import CustomFieldsPanel from '$lib/components/custom-fields/CustomFieldsPanel.svelte';
   import AttachmentPanel from '$lib/components/attachments/AttachmentPanel.svelte';
+  import RecordComments from '$lib/components/comments/RecordComments.svelte';
   import * as Tabs from '$lib/components/ui/tabs/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Badge } from '$lib/components/ui/badge/index.js';
@@ -519,6 +520,10 @@
                 {/if}
               {/each}
             </Timeline>
+        </SectionCard>
+        <!-- Comments -->
+        <SectionCard title="Comments">
+          <RecordComments comments={data.comments || []} canComment={data.commentPermission} />
         </SectionCard>
       </div>
 

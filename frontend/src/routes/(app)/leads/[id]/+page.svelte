@@ -31,6 +31,7 @@
   import { Badge } from '$lib/components/ui/badge/index.js';
   import CustomFieldsPanel from '$lib/components/custom-fields/CustomFieldsPanel.svelte';
   import AttachmentPanel from '$lib/components/attachments/AttachmentPanel.svelte';
+  import RecordComments from '$lib/components/comments/RecordComments.svelte';
   import {
     formatRelativeDate,
     formatDate,
@@ -389,6 +390,10 @@
             {@render efRow('Last contact', { type: 'date', field: 'last_contacted', value: lead?.last_contacted, format: fmtDate })}
             {@render efRow('Next follow-up', { type: 'date', field: 'next_follow_up', value: lead?.next_follow_up, format: fmtDate })}
           </div>
+        </SectionCard>
+        <!-- Comments -->
+        <SectionCard title="Comments">
+          <RecordComments comments={data.comments || []} canComment={data.commentPermission} />
         </SectionCard>
       </div>
 
