@@ -164,10 +164,14 @@ export async function apiRequest(endpoint, options = {}) {
 
   const url = `${API_BASE_URL}${endpoint}`;
 
+  // Multipart uploads pass a FormData body; let the browser set the
+  // Content-Type (with boundary) and do not JSON-encode it.
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
   // Build headers
   /** @type {Record<string, string>} */
   const requestHeaders = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...headers
   };
 
@@ -188,7 +192,7 @@ export async function apiRequest(endpoint, options = {}) {
   };
 
   if (body && method !== 'GET') {
-    fetchOptions.body = JSON.stringify(body);
+    fetchOptions.body = isFormData ? body : JSON.stringify(body);
   }
 
   try {
@@ -290,6 +294,19 @@ export const auth = {
  * @param {string} entityPath - Entity path (e.g., 'accounts', 'leads')
  * @returns {Object} CRUD methods
  */
+/**
+ * Per-entity multipart field name expected by the Django detail POST endpoint
+ * when uploading an attachment to an existing record.
+ * @type {Record<string, string>}
+ */
+const ATTACHMENT_FIELDS = {
+  leads: 'lead_attachment',
+  contacts: 'contact_attachment',
+  accounts: 'account_attachment',
+  opportunity: 'opportunity_attachment',
+  cases: 'case_attachment'
+};
+
 function createCrudApi(entityPath) {
   return {
     /**
@@ -401,6 +418,37 @@ function createCrudApi(entityPath) {
      */
     async getAttachments(id) {
       return await apiRequest(`/${entityPath}/attachment/${id}/`);
+    },
+
+    /**
+     * Upload a file attachment to an existing record.
+     * @param {string} id - Entity (record) UUID
+     * @param {File} file - File to upload
+     * @param {string} [comment] - Optional comment to post alongside the file
+     * @returns {Promise<any>} Updated record context (incl. attachments list)
+     */
+    async uploadAttachment(id, file, comment = '') {
+      const field = ATTACHMENT_FIELDS[entityPath] || 'attachment';
+      const formData = new FormData();
+      formData.append(field, file);
+      if (comment) {
+        formData.append('comment', comment);
+      }
+      return await apiRequest(`/${entityPath}/${id}/`, {
+        method: 'POST',
+        body: formData
+      });
+    },
+
+    /**
+     * Delete an attachment by its own UUID.
+     * @param {string} attachmentId - Attachment UUID
+     * @returns {Promise<any>} Response
+     */
+    async deleteAttachment(attachmentId) {
+      return await apiRequest(`/${entityPath}/attachment/${attachmentId}/`, {
+        method: 'DELETE'
+      });
     }
   };
 }

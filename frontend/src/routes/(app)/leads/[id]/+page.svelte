@@ -30,6 +30,7 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import { Badge } from '$lib/components/ui/badge/index.js';
   import CustomFieldsPanel from '$lib/components/custom-fields/CustomFieldsPanel.svelte';
+  import AttachmentPanel from '$lib/components/attachments/AttachmentPanel.svelte';
   import {
     formatRelativeDate,
     formatDate,
@@ -685,24 +686,8 @@
   <Tabs.Content class="" value="files">
     <div class="pt-4 pb-8">
       <SectionCard title="Files">
-          {#if attachments.length === 0}
-            <p class="text-[12px] italic text-[color:var(--text-subtle)]">No files uploaded.</p>
-          {:else}
-            <ul class="flex flex-col divide-y divide-[color:var(--border-faint)]">
-              {#each attachments as a (a.id)}
-                <li class="flex items-center gap-3 py-2.5 text-[12px]">
-                  <Paperclip class="size-3.5 shrink-0 text-[color:var(--text-subtle)]" />
-                  <span class="flex-1 truncate text-[color:var(--text)]">
-                    {a.file_name || 'File'}
-                  </span>
-                  <span class="text-[11px] text-[color:var(--text-subtle)]">
-                    {a.created_on ? formatRelativeDate(a.created_on) : ''}
-                  </span>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </SectionCard>
+        <AttachmentPanel entity="leads" recordId={lead.id} {attachments} />
+      </SectionCard>
     </div>
   </Tabs.Content>
 </Tabs.Root>

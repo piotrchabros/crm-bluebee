@@ -904,6 +904,11 @@
   {#snippet activitySection()}
     <!-- Metadata (view mode only) -->
     {#if drawerMode !== 'create' && selectedContact}
+      <div class="mb-4">
+        <Button variant="outline" size="sm" href={`/contacts/${selectedContact.id}`}>
+          Open full page
+        </Button>
+      </div>
       <div>
         <p class="mb-2 text-xs font-medium tracking-wider text-[var(--text-tertiary)] uppercase">
           Details
