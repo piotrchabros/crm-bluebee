@@ -9,6 +9,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timesince import timesince
@@ -432,6 +433,17 @@ class Attachments(BaseModel):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+@receiver(models.signals.post_delete, sender=Attachments)
+def _delete_attachment_file(sender, instance, **kwargs):
+    """Remove the underlying file when an Attachments row is deleted.
+
+    Fires for direct deletes and cascade deletes, so deleting a record (or its
+    attachment) frees the stored file instead of leaving an orphan in MEDIA.
+    """
+    if instance.attachment:
+        instance.attachment.delete(save=False)
 
 
 def document_path(self, filename):

@@ -31,6 +31,7 @@ services:
     volumes:
       - ./backend:/app
       - ./docker/backend/entrypoint.sh:/entrypoint.sh:ro
+      - media_data:/media
     ports:
       - "8000:8000"
     depends_on:
@@ -47,6 +48,7 @@ services:
     env_file: .env.docker
     volumes:
       - ./backend:/app
+      - media_data:/media
     depends_on:
       db:
         condition: service_healthy
@@ -61,6 +63,7 @@ services:
     env_file: .env.docker
     volumes:
       - ./backend:/app
+      - media_data:/media
     depends_on:
       db:
         condition: service_healthy
@@ -82,3 +85,7 @@ services:
 volumes:
   postgres_data:
   frontend_node_modules:
+  # Persistent storage for uploaded files (MEDIA_ROOT=/media: attachments,
+  # logos). Without this, /media is in the container's ephemeral layer and is
+  # lost on container recreation.
+  media_data:
