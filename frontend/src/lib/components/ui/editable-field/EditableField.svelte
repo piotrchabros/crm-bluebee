@@ -1,5 +1,6 @@
 <script>
   import { invalidateAll } from '$app/navigation';
+  import { deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { Pencil, Loader2 } from '@lucide/svelte';
   import { cn } from '$lib/utils.js';
@@ -94,7 +95,16 @@
 
     saving = true;
     try {
-      await api.patch(recordId, { [field]: next });
+      // Save through the page's `updateField` server action so the write uses
+      // the cookie JWT + org context (client localStorage token lacks org).
+      const fd = new FormData();
+      fd.append('field', field);
+      fd.append('value', JSON.stringify(next ?? null));
+      const res = await fetch('?/updateField', { method: 'POST', body: fd });
+      /** @type {any} */
+      const result = deserialize(await res.text());
+      if (result.type === 'failure') throw new Error(result.data?.error || 'Save failed');
+      if (result.type === 'error') throw new Error(result.error?.message || 'Save failed');
       editing = false;
       toast.success('Saved');
       onsaved?.();

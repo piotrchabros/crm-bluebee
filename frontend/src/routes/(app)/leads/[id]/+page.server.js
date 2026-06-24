@@ -46,6 +46,29 @@ export async function load({ params, locals, cookies }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+  updateField: async ({ request, params, locals, cookies }) => {
+    const form = await request.formData();
+    const field = form.get('field')?.toString();
+    const raw = form.get('value')?.toString() ?? 'null';
+    if (!field) return fail(400, { error: 'Missing field' });
+    let value;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return fail(400, { error: 'Malformed value payload' });
+    }
+    try {
+      await apiRequest(
+        `/leads/${params.id}/`,
+        { method: 'PATCH', body: { [field]: value } },
+        { cookies, org: locals.org }
+      );
+      return { success: true };
+    } catch (err) {
+      console.error('Update leads field error:', err);
+      return fail(400, { error: /** @type {any} */ (err)?.message || 'Failed to save field' });
+    }
+  },
   updateCustomFields: async ({ request, params, locals, cookies }) => {
     const form = await request.formData();
     const raw = form.get('custom_fields')?.toString() || '{}';
