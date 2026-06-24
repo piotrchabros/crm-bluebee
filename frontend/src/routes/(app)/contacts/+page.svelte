@@ -399,13 +399,9 @@
       selectedContact = null;
       drawerMode = 'create';
       drawerOpen = true;
-    } else if (viewId && contacts.length > 0 && !drawerOpen) {
-      const contact = contacts.find((c) => c.id === viewId);
-      if (contact) {
-        selectedContact = contact;
-        drawerMode = 'view';
-        drawerOpen = true;
-      }
+    } else if (viewId && !drawerOpen) {
+      // Legacy ?view=<id> deep link -> redirect to the detail page.
+      goto(`/contacts/${viewId}`);
     }
   });
 
@@ -858,7 +854,7 @@
       bind:visibleColumns
       bind:activeRowId
       onRowChange={handleRowChange}
-      onRowClick={(row) => openContact(row)}
+      onRowClick={(row) => goto(`/contacts/${row.id}`)}
     >
       {#snippet emptyState()}
         <div class="flex flex-col items-center justify-center py-16 text-center">

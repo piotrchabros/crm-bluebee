@@ -31,6 +31,7 @@
   import { SectionCard } from '$lib/components/ui/section-card/index.js';
   import CustomFieldsPanel from '$lib/components/custom-fields/CustomFieldsPanel.svelte';
   import AttachmentPanel from '$lib/components/attachments/AttachmentPanel.svelte';
+  import RecordComments from '$lib/components/comments/RecordComments.svelte';
   import * as Tabs from '$lib/components/ui/tabs/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Badge } from '$lib/components/ui/badge/index.js';
@@ -46,7 +47,10 @@
     getOptionLabel,
     getOptionStyle
   } from '$lib/utils/table-helpers.js';
-  import { getCountryName } from '$lib/constants/countries.js';
+  import { getCountryName, COUNTRIES } from '$lib/constants/countries.js';
+  import { CURRENCY_CODES } from '$lib/constants/filters.js';
+  import { accounts as accountsApi } from '$lib/api.js';
+  import { EditableField } from '$lib/components/ui/editable-field';
 
   /** @type {{ data: {
    *   account: any,
@@ -203,6 +207,54 @@
   );
 
   const accountCurrency = $derived(account?.currency || 'USD');
+
+  // --- Inline-edit support (record detail page parity with the drawer) ---
+  const recordId = $derived(account?.id);
+
+  // Option values are the EXACT backend choice keys the serializer accepts
+  // (see backend/common/utils.py: INDCHOICES, COUNTRIES, CURRENCY_CODES, and
+  // accounts/models.py). Industry keys are uppercase; country uses 3-char codes.
+  const industryOptions = [
+    { value: 'ADVERTISING', label: 'Advertising' },
+    { value: 'AGRICULTURE', label: 'Agriculture' },
+    { value: 'APPAREL & ACCESSORIES', label: 'Apparel & Accessories' },
+    { value: 'AUTOMOTIVE', label: 'Automotive' },
+    { value: 'BANKING', label: 'Banking' },
+    { value: 'BIOTECHNOLOGY', label: 'Biotechnology' },
+    { value: 'BUILDING MATERIALS & EQUIPMENT', label: 'Building Materials & Equipment' },
+    { value: 'CHEMICAL', label: 'Chemical' },
+    { value: 'COMPUTER', label: 'Computer' },
+    { value: 'EDUCATION', label: 'Education' },
+    { value: 'ELECTRONICS', label: 'Electronics' },
+    { value: 'ENERGY', label: 'Energy' },
+    { value: 'ENTERTAINMENT & LEISURE', label: 'Entertainment & Leisure' },
+    { value: 'FINANCE', label: 'Finance' },
+    { value: 'FOOD & BEVERAGE', label: 'Food & Beverage' },
+    { value: 'GROCERY', label: 'Grocery' },
+    { value: 'HEALTHCARE', label: 'Healthcare' },
+    { value: 'INSURANCE', label: 'Insurance' },
+    { value: 'LEGAL', label: 'Legal' },
+    { value: 'MANUFACTURING', label: 'Manufacturing' },
+    { value: 'PUBLISHING', label: 'Publishing' },
+    { value: 'REAL ESTATE', label: 'Real Estate' },
+    { value: 'SERVICE', label: 'Service' },
+    { value: 'SOFTWARE', label: 'Software' },
+    { value: 'SPORTS', label: 'Sports' },
+    { value: 'TECHNOLOGY', label: 'Technology' },
+    { value: 'TELECOMMUNICATIONS', label: 'Telecommunications' },
+    { value: 'TELEVISION', label: 'Television' },
+    { value: 'TRANSPORTATION', label: 'Transportation' },
+    { value: 'VENTURE CAPITAL', label: 'Venture Capital' }
+  ];
+  const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
+  const currencyOptions = CURRENCY_CODES.filter((c) => c.value).map((c) => ({
+    value: c.value,
+    label: c.label
+  }));
+
+  const fmtMoney = (/** @type {any} */ v) =>
+    v != null && v !== '' ? formatCurrency(parseFloat(v), accountCurrency) : '';
+  const fmtDate = (/** @type {any} */ v) => (v ? formatDate(v) : '');
 </script>
 
 <svelte:head>
@@ -371,18 +423,26 @@
 
   <!-- OVERVIEW -->
   <Tabs.Content class="" value="overview">
+    {#snippet efRow(label, props)}
+      <div class="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-0.5">
+        <span class="text-[12px] text-[color:var(--text-subtle)]">{label}</span>
+        <EditableField {recordId} api={accountsApi} {...props} />
+      </div>
+    {/snippet}
+
     <div class="grid grid-cols-1 gap-6 pt-4 pb-8 lg:grid-cols-[1fr_320px]">
       <!-- Main column -->
       <div class="flex flex-col gap-6">
-        <!-- About card -->
-        <SectionCard title="About">
-          {#if account?.description}
-            <p class="text-[13px] leading-[1.6] whitespace-pre-wrap text-[color:var(--text-muted)]">
-              {account.description}
-            </p>
-          {:else}
-            <p class="text-[12px] italic text-[color:var(--text-subtle)]">No description.</p>
-          {/if}
+        <!-- Notes (Markdown) -->
+        <SectionCard title="Notes">
+          <EditableField
+            type="markdown"
+            field="description"
+            value={account?.description}
+            {recordId}
+            api={accountsApi}
+            emptyText="Click to add notes — Markdown supported (# H1, ## H2, **bold**, - lists)."
+          />
         </SectionCard>
 
         <!-- Custom fields -->
@@ -395,126 +455,36 @@
           />
         {/if}
 
-        <!-- Business info card -->
-        {#if hasBusinessInfo}
-          <SectionCard title="Business">
-            <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-[12px] sm:grid-cols-3">
-                {#if account?.industry}
-                  <div class="flex flex-col gap-1">
-                    <dt class="flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
-                      <Briefcase class="size-3" /> Industry
-                    </dt>
-                    <dd class="text-[13px] text-[color:var(--text)]">{industryLabel}</dd>
-                  </div>
-                {/if}
-                {#if account?.number_of_employees != null}
-                  <div class="flex flex-col gap-1">
-                    <dt class="flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
-                      <Users class="size-3" /> Employees
-                    </dt>
-                    <dd class="text-[13px] tabular-nums text-[color:var(--text)]">
-                      {account.number_of_employees}
-                    </dd>
-                  </div>
-                {/if}
-                {#if account?.annual_revenue != null}
-                  <div class="flex flex-col gap-1">
-                    <dt class="flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
-                      <DollarSign class="size-3" /> Annual Revenue
-                    </dt>
-                    <dd class="text-[15px] font-medium tabular-nums text-[color:var(--text)]">
-                      {formatCurrency(parseFloat(account.annual_revenue), accountCurrency)}
-                    </dd>
-                  </div>
-                {/if}
-              </dl>
-          </SectionCard>
-        {/if}
+        <!-- Company -->
+        <SectionCard title="Company">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Name', { field: 'name', value: account?.name, placeholder: 'Add account name' })}
+            {@render efRow('Industry', { type: 'select', field: 'industry', value: account?.industry, options: industryOptions, placeholder: '—' })}
+            {@render efRow('Employees', { type: 'number', field: 'number_of_employees', value: account?.number_of_employees, placeholder: '0' })}
+            {@render efRow('Annual revenue', { type: 'number', field: 'annual_revenue', value: account?.annual_revenue, placeholder: '0', format: fmtMoney })}
+            {@render efRow('Currency', { type: 'select', field: 'currency', value: account?.currency, options: currencyOptions, placeholder: '—' })}
+          </div>
+        </SectionCard>
 
-        <!-- Contact info card -->
-        {#if hasContactInfo}
-          <SectionCard title="Contact">
-            <dl class="grid grid-cols-1 gap-y-3 text-[12px] sm:grid-cols-2">
-                {#if account?.email}
-                  <div class="flex items-start gap-2">
-                    <Mail
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">Email</dt>
-                      <dd>
-                        <a
-                          href="mailto:{account.email}"
-                          class="truncate text-[color:var(--color-primary-default)] hover:underline"
-                        >
-                          {account.email}
-                        </a>
-                      </dd>
-                    </div>
-                  </div>
-                {/if}
-                {#if account?.phone}
-                  <div class="flex items-start gap-2">
-                    <Phone
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">Phone</dt>
-                      <dd>
-                        <a
-                          href="tel:{account.phone}"
-                          class="truncate text-[color:var(--color-primary-default)] hover:underline"
-                        >
-                          {account.phone}
-                        </a>
-                      </dd>
-                    </div>
-                  </div>
-                {/if}
-                {#if account?.website}
-                  <div class="flex items-start gap-2">
-                    <Globe
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">Website</dt>
-                      <dd>
-                        <a
-                          href={normalizeUrl(account.website)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="inline-flex items-center gap-1 truncate text-[color:var(--color-primary-default)] hover:underline"
-                        >
-                          {account.website}
-                          <ExternalLink class="size-3 shrink-0" aria-hidden="true" />
-                        </a>
-                      </dd>
-                    </div>
-                  </div>
-                {/if}
-              </dl>
-          </SectionCard>
-        {/if}
+        <!-- Contact -->
+        <SectionCard title="Contact">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Email', { type: 'email', field: 'email', value: account?.email, placeholder: 'Add email' })}
+            {@render efRow('Phone', { type: 'tel', field: 'phone', value: account?.phone, placeholder: 'Add phone' })}
+            {@render efRow('Website', { type: 'url', field: 'website', value: account?.website, placeholder: 'Add website' })}
+          </div>
+        </SectionCard>
 
-        <!-- Address card -->
-        {#if hasAddress}
-          <SectionCard title="Address">
-            <div class="flex items-start gap-2 text-[12px]">
-              <MapPin
-                class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                aria-hidden="true"
-              />
-              <address class="flex flex-col gap-0.5 not-italic text-[color:var(--text-muted)]">
-                {#each addressLines as line}
-                  <span>{line}</span>
-                {/each}
-              </address>
-            </div>
-          </SectionCard>
-        {/if}
+        <!-- Address -->
+        <SectionCard title="Address">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Street', { field: 'address_line', value: account?.address_line, placeholder: 'Add street address' })}
+            {@render efRow('City', { field: 'city', value: account?.city, placeholder: 'Add city' })}
+            {@render efRow('State', { field: 'state', value: account?.state, placeholder: 'Add state' })}
+            {@render efRow('Postal code', { field: 'postcode', value: account?.postcode, placeholder: 'Add postal code' })}
+            {@render efRow('Country', { type: 'select', field: 'country', value: account?.country, options: countryOptions, placeholder: '—' })}
+          </div>
+        </SectionCard>
 
         <!-- Activity preview card -->
         <SectionCard title="Activity">
@@ -551,12 +521,17 @@
               {/each}
             </Timeline>
         </SectionCard>
+        <!-- Comments -->
+        <SectionCard title="Comments">
+          <RecordComments comments={data.comments || []} canComment={data.commentPermission} />
+        </SectionCard>
       </div>
 
       <!-- Right rail -->
       <div class="flex flex-col gap-6">
-        <SectionCard title="Details">
-          <dl class="grid grid-cols-1 gap-y-3 text-[12px]">
+        <!-- Record meta (read-only / system fields) -->
+        <SectionCard title="Record">
+          <dl class="grid grid-cols-1 gap-y-2.5 text-[12px]">
               <div class="flex items-baseline justify-between gap-3">
                 <dt class="text-[color:var(--text-subtle)]">Status</dt>
                 <dd>
@@ -571,27 +546,21 @@
                 </dd>
               </div>
               <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Industry</dt>
+                <dt class="text-[color:var(--text-subtle)]">Created</dt>
                 <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {industryLabel || '—'}
+                  {account?.created_at ? formatDate(account.created_at) : '—'}
                 </dd>
               </div>
               <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Currency</dt>
+                <dt class="text-[color:var(--text-subtle)]">Updated</dt>
                 <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {account?.currency || '—'}
+                  {account?.updated_at ? formatRelativeDate(account.updated_at) : '—'}
                 </dd>
               </div>
               <div class="flex items-baseline justify-between gap-3">
                 <dt class="text-[color:var(--text-subtle)]">Created by</dt>
                 <dd class="truncate text-right text-[color:var(--text-muted)]">
                   {account?.created_by?.email || '—'}
-                </dd>
-              </div>
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Created</dt>
-                <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {account?.created_at ? formatRelativeDate(account.created_at) : '—'}
                 </dd>
               </div>
           </dl>

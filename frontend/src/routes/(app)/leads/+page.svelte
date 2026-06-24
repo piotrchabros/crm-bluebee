@@ -737,15 +737,9 @@
       drawerOpen = true;
       // Lazy load form options when drawer opens via URL
       loadFormOptions();
-    } else if (viewId && leads.length > 0) {
-      const lead = leads.find((l) => l.id === viewId);
-      if (lead) {
-        drawerData = lead;
-        drawerMode = 'view';
-        drawerOpen = true;
-        // Lazy load form options when drawer opens via URL
-        loadFormOptions();
-      }
+    } else if (viewId) {
+      // Legacy ?view=<id> deep link -> redirect to the detail page.
+      goto(`/leads/${viewId}`);
     }
   });
 
@@ -1690,7 +1684,7 @@
             bind:visibleColumns
             bind:activeRowId
             onRowChange={handleRowChange}
-            onRowClick={(row) => openLead(row)}
+            onRowClick={(row) => goto(`/leads/${row.id}`)}
           >
             {#snippet emptyState()}
               <div class="flex flex-col items-center justify-center py-16 text-center">
@@ -1711,7 +1705,7 @@
             <button
               type="button"
               class="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--color-primary-light)] dark:hover:bg-[var(--color-primary-default)]/5"
-              onclick={() => openLead(lead)}
+              onclick={() => goto(`/leads/${lead.id}`)}
             >
               <div class="min-w-0 flex-1">
                 <div class="flex items-start justify-between gap-2">

@@ -579,14 +579,19 @@ class ContactDetailView(APIView):
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
-        comment_serializer = CommentSerializer(data=params)
-        if comment_serializer.is_valid():
-            if params.get("comment"):
-                comment_serializer.save(
-                    contact_id=self.contact_obj.id,
-                    commented_by_id=self.request.profile.id,
-                    org=request.profile.org,
-                )
+        # Create the comment via the generic Comment ORM path. The previous
+        # CommentSerializer(data=params).is_valid() route required object_id/org
+        # in the input (which the client never sends), so it silently dropped
+        # every comment. Matches the lead/opportunity create patterns.
+        comment_text = (params.get("comment") or "").strip()
+        if comment_text:
+            Comment.objects.create(
+                content_type=ContentType.objects.get_for_model(Contact),
+                object_id=self.contact_obj.id,
+                comment=comment_text,
+                commented_by=self.request.profile,
+                org=self.request.profile.org,
+            )
 
         if self.request.FILES.get("contact_attachment"):
             attachment = Attachments()

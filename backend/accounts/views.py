@@ -593,13 +593,19 @@ class AccountDetailView(APIView):
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
-        comment_serializer = CommentSerializer(data=data)
-        if comment_serializer.is_valid():
-            if data.get("comment"):
-                comment_serializer.save(
-                    account_id=self.account_obj.id,
-                    commented_by=self.request.profile,
-                )
+        # Create the comment via the generic Comment ORM path. The previous
+        # CommentSerializer(data=data).is_valid() route required object_id/org
+        # in the input (which the client never sends), so it silently dropped
+        # every comment. Matches the lead/opportunity create patterns.
+        comment_text = (data.get("comment") or "").strip()
+        if comment_text:
+            Comment.objects.create(
+                content_type=ContentType.objects.get_for_model(Account),
+                object_id=self.account_obj.id,
+                comment=comment_text,
+                commented_by=self.request.profile,
+                org=self.request.profile.org,
+            )
 
         if self.request.FILES.get("account_attachment"):
             attachment = Attachments()

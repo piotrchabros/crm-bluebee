@@ -1,26 +1,19 @@
 <script>
   import { goto } from '$app/navigation';
-  import {
-    Mail,
-    Phone,
-    Building2,
-    Briefcase,
-    MapPin,
-    Pencil,
-    Paperclip,
-    MessageSquare,
-    ExternalLink
-  } from '@lucide/svelte';
-  import { LinkedinIcon as Linkedin } from '$lib/components/icons';
+  import { Mail, Phone, Building2, Pencil, Paperclip, MessageSquare } from '@lucide/svelte';
   import { PageHeader } from '$lib/components/layout';
   import { SectionCard } from '$lib/components/ui/section-card/index.js';
   import * as Tabs from '$lib/components/ui/tabs/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
-  import { Badge } from '$lib/components/ui/badge/index.js';
   import AttachmentPanel from '$lib/components/attachments/AttachmentPanel.svelte';
-  import { formatRelativeDate } from '$lib/utils/formatting.js';
+  import RecordComments from '$lib/components/comments/RecordComments.svelte';
+  import { formatRelativeDate, formatDate } from '$lib/utils/formatting.js';
+  import { COUNTRIES } from '$lib/constants/lead-choices.js';
+  import { contacts as contactsApi } from '$lib/api.js';
+  import { EditableField } from '$lib/components/ui/editable-field';
+  import { RelationLink } from '$lib/components/ui/relation-link';
 
-  /** @type {{ data: { contact: any, attachments: any[], comments: any[], tasks: any[] } }} */
+  /** @type {{ data: { contact: any, attachments: any[], comments: any[], tasks: any[], commentPermission: boolean } }} */
   let { data } = $props();
 
   const contact = $derived(data.contact || {});
@@ -30,17 +23,42 @@
   const fullName = $derived(
     [contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Contact'
   );
-  const address = $derived(
-    [contact.address_line, contact.city, contact.state, contact.postcode, contact.country]
-      .filter(Boolean)
-      .join(', ')
-  );
+
   const assignedUsers = $derived(
-    (contact.assigned_to || []).map((/** @type {any} */ p) => p?.user_details?.email || p?.email).filter(Boolean)
+    (contact.assigned_to || [])
+      .map((/** @type {any} */ p) => p?.user_details?.email || p?.user?.email || p?.email)
+      .filter(Boolean)
   );
+
+  // --- Inline-edit support ---
+  const recordId = $derived(contact?.id);
+
+  // Country option values are the exact backend ISO choice keys the serializer
+  // accepts (see backend/common/utils.py COUNTRIES + contacts/models.py).
+  const countryOptions = COUNTRIES.filter((c) => c.value).map((c) => ({
+    value: c.value,
+    label: c.label
+  }));
+
+  // do_not_call is a real boolean on the model; the select draft is a string so
+  // transform converts it back to a boolean before PATCH.
+  const boolOptions = [
+    { value: 'false', label: 'No' },
+    { value: 'true', label: 'Yes' }
+  ];
+  const toBool = (/** @type {any} */ v) => v === true || v === 'true';
+
+  // Account relation: the detail serializer returns `account` as a bare UUID PK
+  // (no nested name); link to the account detail page when present.
+  const accountId = $derived(contact?.account?.id || contact?.account || '');
+  const accountName = $derived(contact?.account?.name || (accountId ? 'View account' : ''));
 
   let tab = $state('overview');
 </script>
+
+<svelte:head>
+  <title>{fullName} · BottleCRM</title>
+</svelte:head>
 
 <PageHeader
   title={fullName}
@@ -98,84 +116,113 @@
   </Tabs.List>
 
   <Tabs.Content class="" value="overview">
-    <div class="grid gap-4 pt-4 pb-8 md:grid-cols-2">
-      <SectionCard title="Details">
-        <dl class="flex flex-col gap-2.5 text-[12px]">
-          {#if contact.email}
-            <div class="flex items-center gap-2">
-              <Mail class="size-3.5 text-[color:var(--text-subtle)]" />
-              <a class="hover:underline" href="mailto:{contact.email}">{contact.email}</a>
-            </div>
-          {/if}
-          {#if contact.phone}
-            <div class="flex items-center gap-2">
-              <Phone class="size-3.5 text-[color:var(--text-subtle)]" />
-              <a class="hover:underline" href="tel:{contact.phone}">{contact.phone}</a>
-            </div>
-          {/if}
-          {#if contact.title}
-            <div class="flex items-center gap-2">
-              <Briefcase class="size-3.5 text-[color:var(--text-subtle)]" />
-              <span>{contact.title}{contact.department ? ` · ${contact.department}` : ''}</span>
-            </div>
-          {/if}
-          {#if contact.organization}
-            <div class="flex items-center gap-2">
-              <Building2 class="size-3.5 text-[color:var(--text-subtle)]" />
-              <span>{contact.organization}</span>
-            </div>
-          {/if}
-          {#if contact.linkedin_url}
-            <div class="flex items-center gap-2">
-              <Linkedin class="size-3.5 text-[color:var(--text-subtle)]" />
-              <a class="hover:underline" href={contact.linkedin_url} target="_blank" rel="noopener noreferrer">
-                LinkedIn <ExternalLink class="inline size-3" />
-              </a>
-            </div>
-          {/if}
-          {#if address}
-            <div class="flex items-center gap-2">
-              <MapPin class="size-3.5 text-[color:var(--text-subtle)]" />
-              <span>{address}</span>
-            </div>
-          {/if}
-          {#if contact.do_not_call}
-            <div><Badge variant="outline">Do not call</Badge></div>
-          {/if}
-        </dl>
-      </SectionCard>
+    {#snippet efRow(label, props)}
+      <div class="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-0.5">
+        <span class="text-[12px] text-[color:var(--text-subtle)]">{label}</span>
+        <EditableField {recordId} api={contactsApi} {...props} />
+      </div>
+    {/snippet}
 
-      <SectionCard title="Relationships">
-        <dl class="flex flex-col gap-2.5 text-[12px]">
-          {#if contact.account}
-            <div class="flex items-center justify-between">
-              <span class="text-[color:var(--text-subtle)]">Account</span>
-              <a class="hover:underline" href="/accounts/{contact.account?.id || contact.account}">
-                {contact.account?.name || 'View account'}
-              </a>
+    <div class="grid grid-cols-1 gap-6 pt-4 pb-8 lg:grid-cols-[1fr_320px]">
+      <!-- Main column -->
+      <div class="flex flex-col gap-6">
+        <!-- Notes (Markdown) -->
+        <SectionCard title="Notes">
+          <EditableField
+            type="markdown"
+            field="description"
+            value={contact?.description}
+            {recordId}
+            api={contactsApi}
+            emptyText="Click to add notes — Markdown supported (# H1, ## H2, **bold**, - lists)."
+          />
+        </SectionCard>
+
+        <!-- Person -->
+        <SectionCard title="Person">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('First name', { field: 'first_name', value: contact?.first_name, placeholder: 'Add first name' })}
+            {@render efRow('Last name', { field: 'last_name', value: contact?.last_name, placeholder: 'Add last name' })}
+            {@render efRow('Job title', { field: 'title', value: contact?.title, placeholder: 'Add job title' })}
+            {@render efRow('Department', { field: 'department', value: contact?.department, placeholder: 'Add department' })}
+            {@render efRow('Company', { field: 'organization', value: contact?.organization, placeholder: 'Add company' })}
+          </div>
+        </SectionCard>
+
+        <!-- Contact -->
+        <SectionCard title="Contact">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Email', { type: 'email', field: 'email', value: contact?.email, placeholder: 'Add email' })}
+            {@render efRow('Phone', { type: 'tel', field: 'phone', value: contact?.phone, placeholder: 'Add phone' })}
+            {@render efRow('LinkedIn', { type: 'url', field: 'linkedin_url', value: contact?.linkedin_url, placeholder: 'Add LinkedIn URL' })}
+            {@render efRow('Do not call', { type: 'select', field: 'do_not_call', value: contact?.do_not_call ? 'true' : 'false', options: boolOptions, transform: toBool })}
+          </div>
+        </SectionCard>
+
+        <!-- Address -->
+        <SectionCard title="Address">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Street', { field: 'address_line', value: contact?.address_line, placeholder: 'Add street address' })}
+            {@render efRow('City', { field: 'city', value: contact?.city, placeholder: 'Add city' })}
+            {@render efRow('State', { field: 'state', value: contact?.state, placeholder: 'Add state' })}
+            {@render efRow('Postal code', { field: 'postcode', value: contact?.postcode, placeholder: 'Add postal code' })}
+            {@render efRow('Country', { type: 'select', field: 'country', value: contact?.country, options: countryOptions, placeholder: '—' })}
+          </div>
+        </SectionCard>
+        <!-- Comments -->
+        <SectionCard title="Comments">
+          <RecordComments comments={data.comments || []} canComment={data.commentPermission} />
+        </SectionCard>
+      </div>
+
+      <!-- Right rail -->
+      <div class="flex flex-col gap-6">
+        <!-- Relationships -->
+        <SectionCard title="Relationships">
+          <dl class="grid grid-cols-1 gap-y-2.5 text-[12px]">
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-[color:var(--text-subtle)]">Account</dt>
+              <dd class="min-w-0 text-right">
+                {#if accountId}
+                  <RelationLink
+                    value={accountName}
+                    href={`/accounts/${accountId}`}
+                    label="account"
+                  />
+                {:else}
+                  <span class="text-[color:var(--text-subtle)]">—</span>
+                {/if}
+              </dd>
             </div>
-          {/if}
-          {#if assignedUsers.length}
-            <div class="flex items-start justify-between gap-3">
-              <span class="text-[color:var(--text-subtle)]">Assigned to</span>
-              <span class="text-right">{assignedUsers.join(', ')}</span>
+            {#if assignedUsers.length}
+              <div class="flex items-baseline justify-between gap-3">
+                <dt class="text-[color:var(--text-subtle)]">Assigned to</dt>
+                <dd class="min-w-0 truncate text-right text-[color:var(--text-muted)]">
+                  {assignedUsers.join(', ')}
+                </dd>
+              </div>
+            {/if}
+          </dl>
+        </SectionCard>
+
+        <!-- Record meta (read-only) -->
+        <SectionCard title="Record">
+          <dl class="grid grid-cols-1 gap-y-2.5 text-[12px]">
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-[color:var(--text-subtle)]">Created</dt>
+              <dd class="truncate text-right text-[color:var(--text-muted)]">
+                {contact?.created_at ? formatDate(contact.created_at) : '—'}
+              </dd>
             </div>
-          {/if}
-          {#if (contact.tags || []).length}
-            <div class="flex flex-wrap gap-1.5">
-              {#each contact.tags as tag, i (tag.id ?? tag.slug ?? tag.name ?? i)}
-                <Badge variant="outline">{tag.name || tag}</Badge>
-              {/each}
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-[color:var(--text-subtle)]">Created by</dt>
+              <dd class="truncate text-right text-[color:var(--text-muted)]">
+                {contact?.created_by?.email || '—'}
+              </dd>
             </div>
-          {/if}
-          {#if contact.description}
-            <div class="pt-1">
-              <span class="text-[color:var(--text-subtle)]">Notes</span>
-              <p class="mt-1 whitespace-pre-wrap text-[color:var(--text)]">{contact.description}</p>
-            </div>
-          {/if}
-        </dl>
-      </SectionCard>
+          </dl>
+        </SectionCard>
+      </div>
     </div>
   </Tabs.Content>
 

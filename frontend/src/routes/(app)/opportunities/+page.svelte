@@ -1025,7 +1025,7 @@
 
   /** Open the existing drawer when a kanban card is clicked. */
   function handleKanbanCardClick(opp) {
-    openDrawer(opp.id);
+    goto(`/opportunities/${opp.id}`);
   }
 
   /** "Add a card" footer in a kanban column: pre-fill stage from columnId. */
@@ -1425,7 +1425,7 @@
       bind:visibleColumns
       bind:activeRowId
       onRowChange={handleRowChange}
-      onRowClick={(row) => openDrawer(row.id)}
+      onRowClick={(row) => goto(`/opportunities/${row.id}`)}
     >
       {#snippet emptyState()}
         <div class="flex flex-col items-center justify-center py-16 text-center">
