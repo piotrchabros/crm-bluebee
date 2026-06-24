@@ -371,13 +371,9 @@
       selectedAccount = null;
       drawerMode = 'create';
       drawerOpen = true;
-    } else if (viewId && accounts.length > 0 && !drawerOpen) {
-      const account = accounts.find((a) => a.id === viewId);
-      if (account) {
-        selectedAccount = account;
-        drawerMode = 'view';
-        drawerOpen = true;
-      }
+    } else if (viewId && !drawerOpen) {
+      // Legacy ?view=<id> deep link -> redirect to the detail page.
+      goto(`/accounts/${viewId}`);
     }
   });
 
@@ -908,7 +904,7 @@
         {columns}
         bind:visibleColumns
         bind:activeRowId
-        onRowClick={(row) => openAccount(row)}
+        onRowClick={(row) => goto(`/accounts/${row.id}`)}
       >
         {#snippet emptyState()}
           <div class="flex flex-col items-center justify-center py-16 text-center">
@@ -931,7 +927,7 @@
           class="flex w-full items-start gap-4 p-4 text-left transition-colors hover:bg-[var(--surface-sunken)] {!account.isActive
             ? 'opacity-60'
             : ''}"
-          onclick={() => openAccount(account)}
+          onclick={() => goto(`/accounts/${account.id}`)}
         >
           <div
             class="flex size-12 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary-default)] text-sm font-medium text-white"
