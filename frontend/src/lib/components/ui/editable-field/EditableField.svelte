@@ -66,7 +66,9 @@
 
   function start() {
     if (readOnly || saving) return;
-    draft = toStr(value);
+    let d = toStr(value);
+    if (type === 'date' && d.length > 10) d = d.slice(0, 10);
+    draft = d;
     editing = true;
     queueMicrotask(() => {
       inputEl?.focus?.();
@@ -80,7 +82,8 @@
 
   async function commit() {
     if (!editing || saving) return;
-    if (toStr(draft) === toStr(value)) {
+    const cur = type === 'date' ? toStr(value).slice(0, 10) : toStr(value);
+    if (toStr(draft) === cur) {
       editing = false;
       return;
     }

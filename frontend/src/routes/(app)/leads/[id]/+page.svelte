@@ -43,7 +43,10 @@
     getOptionLabel,
     getOptionStyle
   } from '$lib/utils/table-helpers.js';
-  import { INDUSTRIES } from '$lib/constants/lead-choices.js';
+  import { INDUSTRIES, COUNTRIES } from '$lib/constants/lead-choices.js';
+  import { CURRENCY_CODES } from '$lib/constants/filters.js';
+  import { leads as leadsApi } from '$lib/api.js';
+  import { EditableField } from '$lib/components/ui/editable-field';
   import { getCountryName } from '$lib/constants/countries.js';
 
   /** @type {{ data: { lead: any, comments: any[], attachments: any[], tags: any[], users: any[], commentPermission: boolean, customFieldDefinitions: any[], customFieldValues: Record<string, unknown> } }} */
@@ -135,6 +138,51 @@
     if (!raw) return '';
     return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   }
+
+  // --- Inline-edit support (Feature 2: record detail pages) ---
+  const recordId = $derived(lead?.id);
+
+  // Option values are the exact backend choice keys so PATCH sends what the
+  // serializer accepts (see backend/common/utils.py + leads/models.py).
+  const salutationOptions = [
+    { value: 'Mr', label: 'Mr' },
+    { value: 'Mrs', label: 'Mrs' },
+    { value: 'Ms', label: 'Ms' },
+    { value: 'Dr', label: 'Dr' },
+    { value: 'Prof', label: 'Prof' }
+  ];
+  const statusOptions = [
+    { value: 'assigned', label: 'Assigned' },
+    { value: 'in process', label: 'In Process' },
+    { value: 'converted', label: 'Converted' },
+    { value: 'recycled', label: 'Recycled' },
+    { value: 'closed', label: 'Closed' }
+  ];
+  const ratingOptions = [
+    { value: 'HOT', label: 'Hot' },
+    { value: 'WARM', label: 'Warm' },
+    { value: 'COLD', label: 'Cold' }
+  ];
+  const sourceOptions = [
+    { value: 'call', label: 'Call' },
+    { value: 'email', label: 'Email' },
+    { value: 'existing customer', label: 'Existing Customer' },
+    { value: 'partner', label: 'Partner' },
+    { value: 'public relations', label: 'Public Relations' },
+    { value: 'compaign', label: 'Campaign' },
+    { value: 'other', label: 'Other' }
+  ];
+  const currencyOptions = CURRENCY_CODES.filter((c) => c.value).map((c) => ({
+    value: c.value,
+    label: c.label
+  }));
+  const industryOptions = INDUSTRIES.map((i) => ({ value: i.value, label: i.label }));
+  const countryOptions = COUNTRIES.map((c) => ({ value: c.value, label: c.label }));
+
+  const fmtMoney = (/** @type {any} */ v) =>
+    v != null && v !== '' ? formatCurrency(v, lead?.currency || 'USD') : '';
+  const fmtPct = (/** @type {any} */ v) => (v != null && v !== '' ? `${v}%` : '');
+  const fmtDate = (/** @type {any} */ v) => (v ? formatDate(v) : '');
 
   // Timeline items: comments + attachments + created event, sorted DESC by timestamp.
   const timelineItems = $derived.by(() => {
@@ -257,19 +305,27 @@
   </Tabs.List>
 
   <Tabs.Content class="" value="overview">
+    {#snippet efRow(label, props)}
+      <div class="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 py-0.5">
+        <span class="text-[12px] text-[color:var(--text-subtle)]">{label}</span>
+        <EditableField {recordId} api={leadsApi} {...props} />
+      </div>
+    {/snippet}
+
     <div class="grid grid-cols-1 gap-6 pt-4 pb-8 lg:grid-cols-[1fr_320px]">
       <!-- Main column -->
       <div class="flex flex-col gap-6">
-        <!-- About card -->
-        <SectionCard title="About">
-            {#if lead?.description}
-              <p class="text-[13px] leading-[1.6] whitespace-pre-wrap text-[color:var(--text-muted)]">
-                {lead.description}
-              </p>
-            {:else}
-              <p class="text-[12px] italic text-[color:var(--text-subtle)]">No description.</p>
-            {/if}
-          </SectionCard>
+        <!-- Notes (Markdown) -->
+        <SectionCard title="Notes">
+          <EditableField
+            type="markdown"
+            field="description"
+            value={lead?.description}
+            {recordId}
+            api={leadsApi}
+            emptyText="Click to add notes — Markdown supported (# H1, ## H2, **bold**, - lists)."
+          />
+        </SectionCard>
 
         <!-- Custom fields -->
         {#if customFieldDefinitions.length > 0}
@@ -281,370 +337,178 @@
           />
         {/if}
 
-        <!-- Deal card -->
-        {#if hasDeal}
-          <SectionCard title="Deal">
-              <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-[12px] sm:grid-cols-3">
-                <div class="flex flex-col gap-1">
-                  <dt class="flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
-                    <DollarSign class="size-3" /> Deal Value
-                  </dt>
-                  <dd class="text-[15px] font-medium tabular-nums text-[color:var(--text)]">
-                    {lead?.opportunity_amount != null
-                      ? formatCurrency(lead.opportunity_amount, lead?.currency || 'USD')
-                      : '—'}
-                  </dd>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <dt class="flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
-                    <Target class="size-3" /> Probability
-                  </dt>
-                  <dd class="text-[color:var(--text)]">
-                    {#if probability !== null}
-                      <div class="flex items-center gap-2">
-                        <span class="text-[13px] tabular-nums">{probability}%</span>
-                        <div
-                          class="h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--bg-elevated)]"
-                        >
-                          <div
-                            class="h-full rounded-full bg-[color:var(--color-primary-default)]"
-                            style="width: {probability}%"
-                          ></div>
-                        </div>
-                      </div>
-                    {:else}
-                      <span class="text-[color:var(--text-muted)]">—</span>
-                    {/if}
-                  </dd>
-                </div>
-                <div class="flex flex-col gap-1">
-                  <dt class="flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
-                    <Calendar class="size-3" /> Close Date
-                  </dt>
-                  <dd class="text-[13px] text-[color:var(--text)]">
-                    {lead?.close_date ? formatDate(lead.close_date) : '—'}
-                  </dd>
-                </div>
-              </dl>
-            </SectionCard>
-        {/if}
+        <!-- Person -->
+        <SectionCard title="Person">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Salutation', { type: 'select', field: 'salutation', value: lead?.salutation, options: salutationOptions, placeholder: '—' })}
+            {@render efRow('First name', { field: 'first_name', value: lead?.first_name, placeholder: 'Add first name' })}
+            {@render efRow('Last name', { field: 'last_name', value: lead?.last_name, placeholder: 'Add last name' })}
+            {@render efRow('Job title', { field: 'job_title', value: lead?.job_title, placeholder: 'Add job title' })}
+            {@render efRow('Company', { field: 'company_name', value: lead?.company_name, placeholder: 'Add company' })}
+          </div>
+        </SectionCard>
 
-        <!-- Contact info card -->
-        {#if hasContactLinks}
-          <SectionCard title="Contact">
-              <dl class="grid grid-cols-1 gap-y-3 text-[12px] sm:grid-cols-2">
-                {#if lead?.email}
-                  <div class="flex items-start gap-2">
-                    <Mail
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">Email</dt>
-                      <dd>
-                        <a
-                          href="mailto:{lead.email}"
-                          class="truncate text-[color:var(--color-primary-default)] hover:underline"
-                        >
-                          {lead.email}
-                        </a>
-                      </dd>
-                    </div>
-                  </div>
-                {/if}
-                {#if lead?.phone}
-                  <div class="flex items-start gap-2">
-                    <Phone
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">Phone</dt>
-                      <dd>
-                        <a
-                          href="tel:{lead.phone}"
-                          class="truncate text-[color:var(--color-primary-default)] hover:underline"
-                        >
-                          {lead.phone}
-                        </a>
-                      </dd>
-                    </div>
-                  </div>
-                {/if}
-                {#if lead?.job_title}
-                  <div class="flex items-start gap-2">
-                    <Briefcase
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">Job Title</dt>
-                      <dd class="truncate text-[color:var(--text)]">{lead.job_title}</dd>
-                    </div>
-                  </div>
-                {/if}
-                {#if lead?.website}
-                  <div class="flex items-start gap-2">
-                    <Globe
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">Website</dt>
-                      <dd>
-                        <a
-                          href={normalizeUrl(lead.website)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="inline-flex items-center gap-1 truncate text-[color:var(--color-primary-default)] hover:underline"
-                        >
-                          {lead.website}
-                          <ExternalLink class="size-3 shrink-0" aria-hidden="true" />
-                        </a>
-                      </dd>
-                    </div>
-                  </div>
-                {/if}
-                {#if lead?.linkedin_url}
-                  <div class="flex items-start gap-2">
-                    <Linkedin
-                      class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                      aria-hidden="true"
-                    />
-                    <div class="flex min-w-0 flex-col">
-                      <dt class="text-[11px] text-[color:var(--text-subtle)]">LinkedIn</dt>
-                      <dd>
-                        <a
-                          href={normalizeUrl(lead.linkedin_url)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="inline-flex items-center gap-1 truncate text-[color:var(--color-primary-default)] hover:underline"
-                        >
-                          {lead.linkedin_url}
-                          <ExternalLink class="size-3 shrink-0" aria-hidden="true" />
-                        </a>
-                      </dd>
-                    </div>
-                  </div>
-                {/if}
-              </dl>
-            </SectionCard>
-        {/if}
+        <!-- Contact -->
+        <SectionCard title="Contact">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Email', { type: 'email', field: 'email', value: lead?.email, placeholder: 'Add email' })}
+            {@render efRow('Phone', { type: 'tel', field: 'phone', value: lead?.phone, placeholder: 'Add phone' })}
+            {@render efRow('Website', { type: 'url', field: 'website', value: lead?.website, placeholder: 'Add website' })}
+            {@render efRow('LinkedIn', { type: 'url', field: 'linkedin_url', value: lead?.linkedin_url, placeholder: 'Add LinkedIn URL' })}
+          </div>
+        </SectionCard>
 
-        <!-- Address card -->
-        {#if hasAddress}
-          <SectionCard title="Address">
-              <div class="flex items-start gap-2 text-[12px]">
-                <MapPin
-                  class="mt-0.5 size-3.5 shrink-0 text-[color:var(--text-subtle)]"
-                  aria-hidden="true"
-                />
-                <address class="flex flex-col gap-0.5 not-italic text-[color:var(--text-muted)]">
-                  {#each addressLines as line}
-                    <span>{line}</span>
-                  {/each}
-                </address>
-              </div>
-            </SectionCard>
-        {/if}
+        <!-- Deal -->
+        <SectionCard title="Deal">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Deal value', { type: 'number', field: 'opportunity_amount', value: lead?.opportunity_amount, placeholder: '0', format: fmtMoney })}
+            {@render efRow('Currency', { type: 'select', field: 'currency', value: lead?.currency, options: currencyOptions, placeholder: '—' })}
+            {@render efRow('Probability', { type: 'number', field: 'probability', value: lead?.probability, placeholder: '0', format: fmtPct })}
+            {@render efRow('Close date', { type: 'date', field: 'close_date', value: lead?.close_date, format: fmtDate })}
+            {@render efRow('Status', { type: 'select', field: 'status', value: lead?.status, options: statusOptions, placeholder: '—' })}
+            {@render efRow('Rating', { type: 'select', field: 'rating', value: lead?.rating, options: ratingOptions, placeholder: '—' })}
+            {@render efRow('Source', { type: 'select', field: 'source', value: lead?.source, options: sourceOptions, placeholder: '—' })}
+            {@render efRow('Industry', { type: 'select', field: 'industry', value: lead?.industry, options: industryOptions, placeholder: '—' })}
+          </div>
+        </SectionCard>
 
-        <!-- Activity timeline card -->
-        <SectionCard title="Activity" class="px-4 py-2">
-            <Timeline isEmpty={timelineItems.length === 0}>
-              {#each timelineItems as item (item.id)}
-                {#if item.kind === 'comment'}
-                  <TimelineItem
-                    variant="violet"
-                    time={item.ts ? formatRelativeDate(item.ts) : ''}
-                    quote={item.payload.comment || ''}
-                  >
-                    {#snippet icon()}<MessageSquare class="size-3.5" />{/snippet}
-                    {#snippet text()}
-                      <strong>{item.payload.commented_by_user || 'Someone'}</strong> commented
-                    {/snippet}
-                  </TimelineItem>
-                {:else if item.kind === 'attachment'}
-                  <TimelineItem time={item.ts ? formatRelativeDate(item.ts) : ''}>
-                    {#snippet icon()}<Paperclip class="size-3.5" />{/snippet}
-                    {#snippet text()}
-                      <strong>{item.payload.created_by_user || 'Someone'}</strong> uploaded
-                      <strong>{item.payload.file_name || 'a file'}</strong>
-                    {/snippet}
-                  </TimelineItem>
-                {:else}
-                  <TimelineItem
-                    variant="success"
-                    time={item.ts ? formatRelativeDate(item.ts) : ''}
-                  >
-                    {#snippet icon()}<Calendar class="size-3.5" />{/snippet}
-                    {#snippet text()}Lead created{/snippet}
-                  </TimelineItem>
-                {/if}
-              {/each}
-            </Timeline>
-          </SectionCard>
+        <!-- Address -->
+        <SectionCard title="Address">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Street', { field: 'address_line', value: lead?.address_line, placeholder: 'Add street address' })}
+            {@render efRow('City', { field: 'city', value: lead?.city, placeholder: 'Add city' })}
+            {@render efRow('State', { field: 'state', value: lead?.state, placeholder: 'Add state' })}
+            {@render efRow('Postal code', { field: 'postcode', value: lead?.postcode, placeholder: 'Add postal code' })}
+            {@render efRow('Country', { type: 'select', field: 'country', value: lead?.country, options: countryOptions, placeholder: '—' })}
+          </div>
+        </SectionCard>
+
+        <!-- Dates -->
+        <SectionCard title="Dates">
+          <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
+            {@render efRow('Last contact', { type: 'date', field: 'last_contacted', value: lead?.last_contacted, format: fmtDate })}
+            {@render efRow('Next follow-up', { type: 'date', field: 'next_follow_up', value: lead?.next_follow_up, format: fmtDate })}
+          </div>
+        </SectionCard>
       </div>
 
       <!-- Right rail -->
       <div class="flex flex-col gap-6">
-        <SectionCard title="Details">
-            <dl class="grid grid-cols-1 gap-y-3 text-[12px]">
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Status</dt>
-                <dd>
-                  {#if normalizedStatus}
-                    <Badge
-                      variant="secondary"
-                      class={getOptionStyle(normalizedStatus, leadStatusOptions)}
-                    >
-                      {getOptionLabel(normalizedStatus, leadStatusOptions)}
-                    </Badge>
-                  {:else}
-                    <span class="text-[color:var(--text-muted)]">—</span>
-                  {/if}
-                </dd>
-              </div>
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Rating</dt>
-                <dd>
-                  {#if normalizedRating}
-                    <Badge
-                      variant="secondary"
-                      class={getOptionStyle(normalizedRating, leadRatingOptions)}
-                    >
-                      <Star class="mr-1 size-3" />
-                      {getOptionLabel(normalizedRating, leadRatingOptions)}
-                    </Badge>
-                  {:else}
-                    <span class="text-[color:var(--text-muted)]">—</span>
-                  {/if}
-                </dd>
-              </div>
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Source</dt>
-                <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {sourceLabel || '—'}
-                </dd>
-              </div>
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Industry</dt>
-                <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {industryLabel || '—'}
-                </dd>
-              </div>
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Company</dt>
-                <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {lead?.company_name || '—'}
-                </dd>
-              </div>
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Created by</dt>
-                <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {lead?.created_by?.email || '—'}
-                </dd>
-              </div>
-              <div class="flex items-baseline justify-between gap-3">
-                <dt class="text-[color:var(--text-subtle)]">Updated</dt>
-                <dd class="truncate text-right text-[color:var(--text-muted)]">
-                  {lead?.updated_at ? formatRelativeDate(lead.updated_at) : '—'}
-                </dd>
-              </div>
-            </dl>
-          </SectionCard>
+        <!-- Record meta (read-only) -->
+        <SectionCard title="Record">
+          <dl class="grid grid-cols-1 gap-y-2.5 text-[12px]">
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-[color:var(--text-subtle)]">Created</dt>
+              <dd class="truncate text-right text-[color:var(--text-muted)]">
+                {lead?.created_at || lead?.created_on
+                  ? formatDate(lead.created_at || lead.created_on)
+                  : '—'}
+              </dd>
+            </div>
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-[color:var(--text-subtle)]">Updated</dt>
+              <dd class="truncate text-right text-[color:var(--text-muted)]">
+                {lead?.updated_at ? formatRelativeDate(lead.updated_at) : '—'}
+              </dd>
+            </div>
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-[color:var(--text-subtle)]">Created by</dt>
+              <dd class="truncate text-right text-[color:var(--text-muted)]">
+                {lead?.created_by?.email || '—'}
+              </dd>
+            </div>
+          </dl>
+        </SectionCard>
 
         <!-- People -->
         <SectionCard title="People">
-            <div class="flex flex-col gap-3 text-[12px]">
-              <div>
-                <div class="mb-1.5 flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
-                  <UserCheck class="size-3" /> Assigned to
-                </div>
-                {#if assignedUsers.length === 0}
-                  <p class="italic text-[color:var(--text-subtle)]">Unassigned</p>
-                {:else}
-                  <ul class="flex flex-col gap-1.5">
-                    {#each assignedUsers as user (user.id)}
-                      <li class="flex items-center gap-2">
-                        <span
-                          class="flex size-5 items-center justify-center rounded-full bg-[color:var(--color-primary-light)] text-[9px] font-semibold text-[color:var(--color-primary-default)]"
-                        >
-                          {getNameInitials(user.email, '')}
-                        </span>
-                        <span class="truncate text-[color:var(--text-muted)]">{user.email}</span>
-                      </li>
-                    {/each}
-                  </ul>
-                {/if}
+          <div class="flex flex-col gap-3 text-[12px]">
+            <div>
+              <div class="mb-1.5 flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
+                <UserCheck class="size-3" /> Assigned to
               </div>
-              {#if teams.length > 0}
-                <div>
-                  <div
-                    class="mb-1.5 flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]"
-                  >
-                    <Users class="size-3" /> Teams
-                  </div>
-                  <div class="flex flex-wrap gap-1.5">
-                    {#each teams as team (team.id)}
-                      <Badge
-                        variant="secondary"
-                        class="bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)]"
+              {#if assignedUsers.length === 0}
+                <p class="italic text-[color:var(--text-subtle)]">Unassigned</p>
+              {:else}
+                <ul class="flex flex-col gap-1.5">
+                  {#each assignedUsers as user (user.id)}
+                    <li class="flex items-center gap-2">
+                      <span
+                        class="flex size-5 items-center justify-center rounded-full bg-[color:var(--color-primary-light)] text-[9px] font-semibold text-[color:var(--color-primary-default)]"
                       >
-                        {team.name}
-                      </Badge>
-                    {/each}
-                  </div>
-                </div>
+                        {getNameInitials(user.email, '')}
+                      </span>
+                      <span class="truncate text-[color:var(--text-muted)]">{user.email}</span>
+                    </li>
+                  {/each}
+                </ul>
               {/if}
             </div>
-          </SectionCard>
-
-        <!-- Dates -->
-        {#if lead?.last_contacted || lead?.next_follow_up}
-          <SectionCard title="Dates">
-              <dl class="grid grid-cols-1 gap-y-3 text-[12px]">
-                {#if lead?.last_contacted}
-                  <div class="flex items-baseline justify-between gap-3">
-                    <dt class="text-[color:var(--text-subtle)]">Last contact</dt>
-                    <dd
-                      class="truncate text-right text-[color:var(--text-muted)]"
-                      title={formatDate(lead.last_contacted)}
+            {#if teams.length > 0}
+              <div>
+                <div class="mb-1.5 flex items-center gap-1 text-[11px] text-[color:var(--text-subtle)]">
+                  <Users class="size-3" /> Teams
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  {#each teams as team (team.id)}
+                    <Badge
+                      variant="secondary"
+                      class="bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)]"
                     >
-                      {formatRelativeDate(lead.last_contacted)}
-                    </dd>
-                  </div>
-                {/if}
-                {#if lead?.next_follow_up}
-                  <div class="flex items-baseline justify-between gap-3">
-                    <dt class="text-[color:var(--text-subtle)]">Next follow-up</dt>
-                    <dd
-                      class="truncate text-right text-[color:var(--text-muted)]"
-                      title={formatDate(lead.next_follow_up)}
-                    >
-                      {formatDate(lead.next_follow_up)}
-                    </dd>
-                  </div>
-                {/if}
-              </dl>
-            </SectionCard>
-        {/if}
-
-        <SectionCard title="Tags">
-            {#if tags.length === 0}
-              <p class="text-[12px] italic text-[color:var(--text-subtle)]">No tags.</p>
-            {:else}
-              <div class="flex flex-wrap gap-1.5">
-                {#each tags as tag, i (tag.id ?? tag.slug ?? tag.name ?? i)}
-                  <Badge
-                    variant="secondary"
-                    class="bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)]"
-                  >
-                    {tag.name}
-                  </Badge>
-                {/each}
+                      {team.name}
+                    </Badge>
+                  {/each}
+                </div>
               </div>
             {/if}
-          </SectionCard>
+          </div>
+        </SectionCard>
+
+        <!-- Tags -->
+        <SectionCard title="Tags">
+          {#if tags.length === 0}
+            <p class="text-[12px] italic text-[color:var(--text-subtle)]">No tags.</p>
+          {:else}
+            <div class="flex flex-wrap gap-1.5">
+              {#each tags as tag, i (tag.id ?? tag.slug ?? tag.name ?? i)}
+                <Badge
+                  variant="secondary"
+                  class="bg-[color:var(--bg-elevated)] text-[color:var(--text-muted)]"
+                >
+                  {tag.name}
+                </Badge>
+              {/each}
+            </div>
+          {/if}
+        </SectionCard>
+
+        <!-- Activity preview -->
+        <SectionCard title="Activity" class="px-4 py-2">
+          <Timeline isEmpty={timelineItems.length === 0}>
+            {#each timelineItems as item (item.id)}
+              {#if item.kind === 'comment'}
+                <TimelineItem
+                  variant="violet"
+                  time={item.ts ? formatRelativeDate(item.ts) : ''}
+                  quote={item.payload.comment || ''}
+                >
+                  {#snippet icon()}<MessageSquare class="size-3.5" />{/snippet}
+                  {#snippet text()}<strong>{item.payload.commented_by_user || 'Someone'}</strong> commented{/snippet}
+                </TimelineItem>
+              {:else if item.kind === 'attachment'}
+                <TimelineItem time={item.ts ? formatRelativeDate(item.ts) : ''}>
+                  {#snippet icon()}<Paperclip class="size-3.5" />{/snippet}
+                  {#snippet text()}<strong>{item.payload.created_by_user || 'Someone'}</strong> uploaded <strong>{item.payload.file_name || 'a file'}</strong>{/snippet}
+                </TimelineItem>
+              {:else}
+                <TimelineItem variant="success" time={item.ts ? formatRelativeDate(item.ts) : ''}>
+                  {#snippet icon()}<Calendar class="size-3.5" />{/snippet}
+                  {#snippet text()}Lead created{/snippet}
+                </TimelineItem>
+              {/if}
+            {/each}
+          </Timeline>
+        </SectionCard>
       </div>
     </div>
   </Tabs.Content>
