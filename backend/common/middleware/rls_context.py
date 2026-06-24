@@ -121,6 +121,10 @@ class RequireOrgContext:
         # Public CSAT survey link (Tier 2 csat) — anonymous, sets RLS
         # context manually inside the view from the survey's own org_id.
         "/api/public/csat/",
+        # Uploaded media files (attachments) are served as public-by-obscurity
+        # links with no org context on the request. TODO: move to a signed /
+        # authenticated proxy that enforces per-file org isolation.
+        "/media/",
     ]
 
     def __init__(self, get_response):

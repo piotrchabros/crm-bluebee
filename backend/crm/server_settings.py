@@ -20,7 +20,10 @@ DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 DEFAULT_S3_PATH = "media"
 
 MEDIA_ROOT = f"/{DEFAULT_S3_PATH}/"
-MEDIA_URL = f"//{S3_DOMAIN}/{DEFAULT_S3_PATH}/"
+# Files are stored on the local media volume (FileSystemStorage); serve them
+# from /media/ (Caddy proxies /media* -> backend). The S3 settings below are
+# legacy/unused on Django 6 (DEFAULT_FILE_STORAGE is ignored; STORAGES wins).
+MEDIA_URL = "/media/"
 # STATIC_URL = "https://%s/" % (S3_DOMAIN)
 # ADMIN_MEDIA_PREFIX = STATIC_URL + "admin/"
 

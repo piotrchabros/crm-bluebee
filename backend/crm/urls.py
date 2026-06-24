@@ -40,6 +40,17 @@ urlpatterns = [
 ]
 
 
+# Serve uploaded media in all environments. Caddy proxies /media* to this
+# backend, which serves files from the persistent media volume (MEDIA_ROOT).
+# NOTE: unauthenticated — anyone with the URL can fetch the file (tracked TODO:
+# move to a signed/authenticated proxy).
+from django.views.static import serve as _media_serve  # noqa: E402
+
+urlpatterns += [
+    url(r"^media/(?P<path>.*)$", _media_serve, {"document_root": settings.MEDIA_ROOT}),
+]
+
+
 if settings.DEBUG:
     from django.conf.urls.static import static
     from django.contrib.staticfiles.urls import staticfiles_urlpatterns
