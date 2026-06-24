@@ -6,10 +6,14 @@ matches the API's ``{"error": True, "errors": ...}`` convention. Without this,
 such errors propagate as HTTP 500.
 """
 
+import logging
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
+
+logger = logging.getLogger(__name__)
 
 
 def custom_exception_handler(exc, context):
@@ -18,13 +22,13 @@ def custom_exception_handler(exc, context):
         return response
 
     if isinstance(exc, DjangoValidationError):
-        if hasattr(exc, "message_dict"):
-            errors = exc.message_dict
-        else:
-            errors = exc.messages
+        errors = getattr(exc, "message_dict", None) or exc.messages
         return Response(
             {"error": True, "errors": errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    return response
+    # Unhandled exception: log it and return None so Django produces its
+    # standard 500 response.
+    logger.exception("Unhandled exception in API view", exc_info=exc)
+    return None

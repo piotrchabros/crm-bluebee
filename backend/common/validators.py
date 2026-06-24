@@ -71,6 +71,46 @@ ALLOWED_ATTACHMENT_EXTENSIONS = frozenset(
     }
 )
 
+# Dangerous extensions that must never appear anywhere in the file name, even
+# as an inner segment of a multi-extension name (e.g. "invoice.exe.pdf"). This
+# blocks double-extension smuggling past the allowlist.
+BLOCKED_ATTACHMENT_EXTENSIONS = frozenset(
+    {
+        "exe",
+        "msi",
+        "bat",
+        "cmd",
+        "com",
+        "scr",
+        "pif",
+        "dll",
+        "sh",
+        "bash",
+        "zsh",
+        "ps1",
+        "psm1",
+        "vbs",
+        "vbe",
+        "js",
+        "jse",
+        "jar",
+        "app",
+        "apk",
+        "deb",
+        "rpm",
+        "bin",
+        "run",
+        "php",
+        "phtml",
+        "py",
+        "pl",
+        "rb",
+        "html",
+        "htm",
+        "svg",
+    }
+)
+
 
 def validate_attachment_file(value):
     """Validate an uploaded attachment's size and extension.
@@ -97,10 +137,21 @@ def validate_attachment_file(value):
         )
 
     name = getattr(value, "name", "") or ""
-    ext = os.path.splitext(name)[1].lower().lstrip(".")
+    basename = os.path.basename(name)
+    # All dot-separated segments after the first (the candidate extensions).
+    segments = [s.lower() for s in basename.split(".")[1:]]
+    ext = segments[-1] if segments else ""
+
     if ext not in ALLOWED_ATTACHMENT_EXTENSIONS:
         allowed = ", ".join(sorted(ALLOWED_ATTACHMENT_EXTENSIONS))
         raise ValidationError(
             _("File type '.%(ext)s' is not allowed. Allowed types: %(allowed)s.")
             % {"ext": ext or "?", "allowed": allowed}
+        )
+
+    # Reject double-extension smuggling, e.g. "invoice.exe.pdf": the final
+    # extension is allowed but an inner segment is a dangerous executable type.
+    if any(seg in BLOCKED_ATTACHMENT_EXTENSIONS for seg in segments[:-1]):
+        raise ValidationError(
+            _("File name has a suspicious multi-extension and is not allowed.")
         )

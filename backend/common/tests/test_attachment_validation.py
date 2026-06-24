@@ -52,6 +52,16 @@ class TestValidateAttachmentFile:
         )
         validate_attachment_file(at_limit)
 
+    def test_double_extension_smuggling_rejected(self):
+        # final extension is allowed but an inner segment is an executable
+        for name in ["invoice.exe.pdf", "report.sh.png", "data.js.csv", "x.bat.docx"]:
+            with pytest.raises(ValidationError):
+                validate_attachment_file(self._file(name))
+
+    def test_legit_dotted_name_passes(self):
+        # dots that are not dangerous extensions are fine
+        validate_attachment_file(self._file("2026.q1.report.pdf"))
+
     def test_none_is_noop(self):
         validate_attachment_file(None)
 

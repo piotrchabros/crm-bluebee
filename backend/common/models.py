@@ -418,11 +418,16 @@ class Attachments(BaseModel):
                     }
                 )
 
-        if self.attachment:
+        # Only validate the file on initial upload (new row). Re-saving an
+        # existing attachment (e.g. an unrelated field update) must not
+        # re-validate an already-stored file, which could reject legacy files
+        # whose type predates this allowlist.
+        if self.attachment and self._state.adding:
             try:
                 validate_attachment_file(self.attachment)
             except ValidationError as exc:
-                raise ValidationError({"attachment": exc.messages})
+                messages = getattr(exc, "message_dict", None) or exc.messages
+                raise ValidationError({"attachment": messages})
 
     def save(self, *args, **kwargs):
         self.full_clean()
