@@ -20,8 +20,9 @@ view, can be uploaded and deleted from the UI, and are isolated per org.
   (`ContentType` + `object_id` generic FK), org-scoped, indexed on
   `(content_type, object_id)` and `(org, -created_at)`.
 - Files are stored on `FileField(upload_to="attachments/%Y/%m/")` →
-  `MEDIA_ROOT=/app/media` → host bind mount `/srv/crm-bluebee/backend/media`
-  (persistent across container rebuilds).
+  `MEDIA_ROOT=/media` inside the backend container, backed by the persistent
+  Docker named volume `media_data` (mounted on backend + celery). Deleting an
+  attachment also removes its file via a `post_delete` signal.
 - `cases/views.py` is the reference implementation for the upload/list/delete
   pattern; new work copies it rather than inventing a new shape.
 
@@ -74,5 +75,9 @@ view, can be uploaded and deleted from the UI, and are isolated per org.
 
 ### Non-functional / ops
 
-- `media/` is **not** covered by the existing daily DB backup; backup coverage
-  for `backend/media/` must be added so attachments are recoverable.
+- Media is persisted on the `media_data` Docker volume (not the ephemeral
+  container layer) so attachments survive container recreation.
+- The daily backup (`ops/crm-bluebee-backup.sh`) archives the container's
+  `/media` as `media_<ts>.tar.gz` alongside the DB dump.
+- Tests use a temp `MEDIA_ROOT` (`crm/test_settings.py`) so the suite never
+  writes into production media.
