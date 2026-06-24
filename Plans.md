@@ -135,3 +135,15 @@ in each entity's drawer column set.
 - Frontend test framework presence not yet confirmed; `[tdd:required]` tasks fall
   back to a manual/interaction harness if vitest/playwright is absent — revisit.
 - The drawer component is **not** removed; it still serves create and other uses.
+
+---
+
+# Feature 3: Comments on deals
+
+追加日: 2026-06-24
+
+Spec contract: spec.md -> "Feature: Comments on deals (opportunities)".
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 9.1 | RecordComments component + addComment/editComment/deleteComment server actions on opportunities/[id]: markdown-rendered list (author + date), add form, author/admin-gated inline edit + delete. ✅ svelte-check baseline; prod build green; SSR 307 no 500. ⚠️ live browser click-through needs owner login. | List+add+edit+delete work for the owner; non-author cannot edit/delete (403); markdown rendered safely. | - | cc:WIP |

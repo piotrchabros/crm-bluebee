@@ -164,3 +164,21 @@ related record in a **new browser tab**.
 - Changing the create flow or removing the drawer component itself (still used
   for create and elsewhere).
 - New permissions or field-level visibility rules beyond existing RLS/role.
+
+---
+
+## Feature: Comments on deals (opportunities)
+
+> Added 2026-06-24.
+
+On the opportunity (deal) detail page, users can read and post comments.
+
+- **List**: each comment shows author, relative date, and text rendered as
+  sanitized Markdown (same allowlist as Notes), newest first.
+- **Add**: a form posts a new comment (POST /opportunities/<id>/ with {comment}).
+- **Edit / Delete**: a comment the current user authored (or any comment, if
+  ADMIN) has inline edit and delete-with-confirm; others see no edit/delete
+  controls. The backend re-enforces author/ADMIN permission
+  (PATCH/DELETE /opportunities/comment/<commentId>/), returning 403 otherwise.
+- Writes go through SvelteKit server actions (cookie JWT + org context), never
+  the client token. The feature adds no new privileges.
