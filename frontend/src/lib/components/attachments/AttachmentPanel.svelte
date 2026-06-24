@@ -143,11 +143,10 @@
       {#each attachments as a (a.id)}
         <li class="flex items-center gap-3 py-2.5 text-[12px]">
           <Paperclip class="size-3.5 shrink-0 text-[color:var(--text-subtle)]" />
-          <!-- TODO(security): file_path is served from /media/ without auth;
-               anyone with the URL can fetch it. Move to an authenticated proxy
-               or signed URLs (tracked separately). -->
+          <!-- Authenticated proxy: /files/<id> streams the file server-side
+               using the session cookie + per-org check (no public /media link). -->
           <a
-            href={a.file_path}
+            href={`/files/${a.id}`}
             target="_blank"
             rel="noopener noreferrer"
             class="flex-1 truncate text-[color:var(--text)] hover:underline"

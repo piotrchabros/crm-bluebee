@@ -4,6 +4,8 @@ from django.contrib.auth import views
 from django.urls import include, path
 from django.urls import re_path as url
 from django.views.generic import TemplateView
+
+from common.views.attachment_views import AttachmentDownloadView
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -19,6 +21,11 @@ urlpatterns = [
         name="healthz",
     ),
     path("api/", include("common.app_urls", namespace="common_urls")),
+    path(
+        "api/attachments/<str:pk>/download/",
+        AttachmentDownloadView.as_view(),
+        name="attachment_download",
+    ),
     # Public portal endpoints (no auth required)
     path("api/public/", include("invoices.public_urls", namespace="public_invoices")),
     path(
@@ -37,17 +44,6 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc",
     ),
-]
-
-
-# Serve uploaded media in all environments. Caddy proxies /media* to this
-# backend, which serves files from the persistent media volume (MEDIA_ROOT).
-# NOTE: unauthenticated — anyone with the URL can fetch the file (tracked TODO:
-# move to a signed/authenticated proxy).
-from django.views.static import serve as _media_serve  # noqa: E402
-
-urlpatterns += [
-    url(r"^media/(?P<path>.*)$", _media_serve, {"document_root": settings.MEDIA_ROOT}),
 ]
 
 
