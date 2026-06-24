@@ -81,3 +81,86 @@ view, can be uploaded and deleted from the UI, and are isolated per org.
   `/media` as `media_<ts>.tar.gz` alongside the DB dump.
 - Tests use a temp `MEDIA_ROOT` (`crm/test_settings.py`) so the suite never
   writes into production media.
+
+---
+
+## Feature: Record detail pages as the primary record view
+
+> Added 2026-06-24. Covers leads, contacts, accounts, opportunities (deals).
+> Supersedes the read/quick-view role of the NotionDrawer for these entities.
+
+### Summary
+
+Clicking a row in the **leads, contacts, accounts, or opportunities** list
+navigates directly to that record's **detail page** (`/<entity>/<id>`) instead
+of opening the side drawer. The detail page is the single, full-fidelity view of
+a record: it shows **every field the drawer showed**, every field is **editable
+in place**, the **Notes** field renders simple rich text from Markdown, and each
+field that is a **relation to another record** offers a control to open the
+related record in a **new browser tab**.
+
+### Behavior contract
+
+1. **Row click → detail page (no drawer).**
+   - In all four list views, clicking a row routes to `/<entity>/<id>` via
+     client-side navigation. The view drawer is no longer opened by a row click.
+   - The **create** flow still uses the drawer (or its existing create surface);
+     only *viewing/opening an existing record* changes.
+   - **In-place inline cell editing in the list table is preserved** — only the
+     row-open gesture changes, not the table's per-cell quick edit.
+   - Deep links that previously opened a record in the drawer
+     (e.g. `?<entity>=<id>`, `?action=view`) **redirect** to the detail page
+     rather than 404-ing or opening the drawer.
+
+2. **Detail page is a superset of the drawer.**
+   - Every field present in the entity's drawer column set appears on the detail
+     page. No field that was visible/editable in the drawer is dropped.
+
+3. **Every field editable in place (inline per-field autosave).**
+   - Each editable field can be edited directly on the detail page; the change is
+     persisted on commit (blur or Enter) via a partial update (`PATCH`) of that
+     single field. A success toast confirms; a failure reverts the field to its
+     prior value and surfaces an error.
+   - **Read-only / system fields are excluded** and rendered non-editable:
+     `id`, timestamps (`created_at`, `updated_at`), audit fields (`created_by`),
+     and server-derived/computed values (e.g. opportunity `probability` when it
+     is derived from stage). These are displayed but never editable.
+   - Editing introduces **no new privileges**: the same RLS/role checks that
+     gate the existing update endpoints apply unchanged. A user who cannot edit a
+     record cannot edit its fields here.
+
+4. **Notes render simple rich text from Markdown.**
+   - The Notes field is authored as **Markdown** and rendered to HTML for display.
+   - Supported, at minimum: preserved **spaces and line breaks**, **h1**, **h2**,
+     and **bold**. Lists and links may also render.
+   - Rendering is **sanitized** (server-authoritative trust boundary mirrored on
+     the client): output HTML is restricted to an allowlist
+     (`h1, h2, p, br, strong/b, em, ul, ol, li, a`); `<script>`, event handlers,
+     and any other tags/attributes are stripped. Untrusted Markdown can never
+     execute script.
+   - Notes are **stored as raw Markdown text** (no data-model change); rendering
+     and sanitization happen at display time.
+
+5. **Relation fields can open the related record in a new tab.**
+   - Any field that references another entity (e.g. opportunity → account,
+     contact → account, lead → converted account/contact/opportunity) shows, next
+     to its value, a control that opens the related record's detail page
+     (`/<related-entity>/<id>`) in a **new browser tab**, leaving the current
+     record open.
+
+### UI quality
+
+- The detail pages are restructured to reduce clutter: fields grouped into clear
+  labeled sections, consistent spacing/typography per `DESIGN_SYSTEM.md`, no
+  duplicated drawer-only chrome, and a stable two-pane / sectioned layout that
+  reads cleanly on desktop and collapses sanely on mobile. "Cluttered" is
+  replaced by a defined section grouping per entity.
+
+### Out of scope (this iteration)
+
+- Full Markdown/WYSIWYG (tables, images, code blocks) — only the simple subset
+  above is supported for Notes.
+- Bulk/multi-field transactional edit with a single Save — editing is per-field.
+- Changing the create flow or removing the drawer component itself (still used
+  for create and elsewhere).
+- New permissions or field-level visibility rules beyond existing RLS/role.
