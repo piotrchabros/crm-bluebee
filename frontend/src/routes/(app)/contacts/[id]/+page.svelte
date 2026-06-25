@@ -13,7 +13,7 @@
   import { EditableField } from '$lib/components/ui/editable-field';
   import { RelationLink } from '$lib/components/ui/relation-link';
 
-  /** @type {{ data: { contact: any, attachments: any[], comments: any[], tasks: any[], commentPermission: boolean } }} */
+  /** @type {{ data: { contact: any, attachments: any[], comments: any[], tasks: any[], commentPermission: boolean, accounts: any[] } }} */
   let { data } = $props();
 
   const contact = $derived(data.contact || {});
@@ -52,6 +52,13 @@
   // (no nested name); link to the account detail page when present.
   const accountId = $derived(contact?.account?.id || contact?.account || '');
   const accountName = $derived(contact?.account?.name || (accountId ? 'View account' : ''));
+
+  // Company dropdown: real Account records in this org (sets the contact.account
+  // FK, which is what drives the company\u2019s Contacts tab).
+  const accountOptions = $derived(
+    (data.accounts || []).map((/** @type {any} */ a) => ({ value: a.id, label: a.name }))
+  );
+  const toAccount = (/** @type {any} */ v) => v || null;
 
   let tab = $state('overview');
 </script>
@@ -145,7 +152,7 @@
             {@render efRow('Last name', { field: 'last_name', value: contact?.last_name, placeholder: 'Add last name' })}
             {@render efRow('Job title', { field: 'title', value: contact?.title, placeholder: 'Add job title' })}
             {@render efRow('Department', { field: 'department', value: contact?.department, placeholder: 'Add department' })}
-            {@render efRow('Company', { field: 'organization', value: contact?.organization, placeholder: 'Add company' })}
+            {@render efRow('Company', { type: 'select', field: 'account', value: accountId, options: accountOptions, placeholder: 'No company', transform: toAccount })}
           </div>
         </SectionCard>
 

@@ -31,6 +31,7 @@ from common.serializer import (
 )
 from common.utils import COUNTRIES
 from contacts import swagger_params
+from accounts.models import Account
 from contacts.models import Contact
 from contacts.serializer import (
     ContactCommentEditSwaggerSerializer,
@@ -494,6 +495,11 @@ class ContactDetailView(APIView):
                     contact_obj.task_contacts.all(), many=True
                 ).data,
                 "users_mention": users_mention,
+                "accounts": list(
+                    Account.objects.filter(org=request.profile.org)
+                    .values("id", "name")
+                    .order_by("name")
+                ),
             }
         )
 

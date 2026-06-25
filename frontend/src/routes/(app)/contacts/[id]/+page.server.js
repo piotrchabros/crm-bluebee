@@ -31,7 +31,8 @@ export async function load({ params, locals, cookies }) {
       attachments: response.attachments || contact?.contact_attachment || [],
       comments: response.comments || [],
       commentPermission: response.comment_permission ?? true,
-      tasks: response.tasks || []
+      tasks: response.tasks || [],
+      accounts: response.accounts || []
     };
   } catch (err) {
     if (/** @type {any} */ (err)?.status) throw err;
