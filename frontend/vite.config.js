@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
     server: {
       allowedHosts: [
         "crm.bluebee.marketing",
+        "crm.bespokesoft.pl",
         "localhost",
         "127.0.0.1",
       ],
