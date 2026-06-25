@@ -20,6 +20,7 @@ urlpatterns = [
         TemplateView.as_view(template_name="healthz.html"),
         name="healthz",
     ),
+    path("", include("oauth_mcp.urls")),
     path("api/", include("common.app_urls", namespace="common_urls")),
     path(
         "api/attachments/<str:pk>/download/",

@@ -110,13 +110,24 @@ async def _unauthorized(scope, send):
         b'{"error":"unauthorized","detail":"Missing or malformed Authorization '
         b'header. Send: Authorization: Bearer <bcrm_pat_...>"}'
     )
+    # Point OAuth-capable MCP clients (e.g. Claude.ai connectors) at the
+    # protected-resource metadata so they can run the OAuth flow (RFC 9728).
+    host = "crm.bespokesoft.pl"
+    for _n, _v in scope.get("headers", []):
+        if _n == b"host":
+            host = _v.decode("latin-1")
+            break
+    www_auth = (
+        'Bearer resource_metadata="https://%s/.well-known/oauth-protected-resource"'
+        % host
+    ).encode("ascii")
     await send(
         {
             "type": "http.response.start",
             "status": 401,
             "headers": [
                 (b"content-type", b"application/json"),
-                (b"www-authenticate", b"Bearer"),
+                (b"www-authenticate", www_auth),
                 (b"content-length", str(len(body)).encode("ascii")),
             ],
         }
