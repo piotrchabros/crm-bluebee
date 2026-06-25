@@ -65,6 +65,18 @@
     label: c.label
   }));
 
+  // Assignable users = active profiles in this org (loader provides data.users).
+  // assigned_to is an M2M, so the PATCH must send a list; toAssignedTo wraps the
+  // single picked profile id into an array (or [] to unassign).
+  const userOptions = $derived(
+    (data.users || []).map((/** @type {any} */ u) => ({
+      value: u.id,
+      label: u.user_details?.email || u.user_details?.name || "User"
+    }))
+  );
+  const assignedToId = $derived(opp?.assigned_to?.[0]?.id || "");
+  const toAssignedTo = (/** @type {any} */ v) => (v ? [v] : []);
+
   // Build the 6 stepper cells from OPPORTUNITY_STAGES (skipping the 'ALL' filter sentinel)
   const stepperStages = $derived(
     OPPORTUNITY_STAGES.filter((s) => s.value !== 'ALL').map((s) => ({
@@ -226,6 +238,7 @@
         <SectionCard title="Deal">
           <div class="flex flex-col divide-y divide-[color:var(--border)]/40">
             {@render efRow('Name', { field: 'name', value: opp?.name, placeholder: 'Add name' })}
+            {@render efRow('Assigned to', { type: 'select', field: 'assigned_to', value: assignedToId, options: userOptions, placeholder: 'Unassigned', transform: toAssignedTo })}
             {@render efRow('Stage', { type: 'select', field: 'stage', value: opp?.stage, options: stageOptions, placeholder: '—' })}
             {@render efRow('Type', { type: 'select', field: 'opportunity_type', value: opp?.opportunity_type, options: typeOptions, placeholder: '—' })}
             {@render efRow('Amount', { type: 'number', field: 'amount', value: opp?.amount, placeholder: '0', format: fmtMoney })}
