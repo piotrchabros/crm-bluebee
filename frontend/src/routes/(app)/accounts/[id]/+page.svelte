@@ -652,9 +652,12 @@
                     {getNameInitials(fullContactName(c), '')}
                   </span>
                   <div class="flex min-w-0 flex-1 flex-col">
-                    <span class="truncate font-medium text-[color:var(--text)]">
+                    <a
+                      href="/contacts/{c.id}"
+                      class="truncate font-medium text-[color:var(--text)] hover:text-[color:var(--color-primary-default)] hover:underline"
+                    >
                       {fullContactName(c)}
-                    </span>
+                    </a>
                     {#if c.email || c.primary_email}
                       <a
                         href="mailto:{c.email || c.primary_email}"

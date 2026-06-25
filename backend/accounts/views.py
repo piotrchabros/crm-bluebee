@@ -513,7 +513,10 @@ class AccountDetailView(APIView):
                 "attachments": AttachmentsSerializer(attachments, many=True).data,
                 "comments": CommentSerializer(comments, many=True).data,
                 "contacts": ContactSerializer(
-                    self.account.contacts.all(), many=True
+                    Contact.objects.filter(
+                        Q(account=self.account) | Q(account_contacts=self.account)
+                    ).distinct(),
+                    many=True,
                 ).data,
                 "opportunity_list": OpportunitySerializer(
                     Opportunity.objects.filter(account=self.account), many=True
