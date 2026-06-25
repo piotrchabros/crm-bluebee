@@ -68,7 +68,7 @@ def send_welcome_email(user_id):
 
 
 @shared_task
-def send_magic_link_email(token_id, raw_code=None):
+def send_magic_link_email(token_id, raw_code=None, base_url=None):
     """Send a magic-link or OTP-code email for passwordless authentication.
 
     For `delivery == "code"` rows, the caller passes `raw_code` (the plaintext
@@ -99,7 +99,8 @@ def send_magic_link_email(token_id, raw_code=None):
             {"code": raw_code},
         )
     else:
-        magic_link_url = f"{settings.FRONTEND_URL}/login/verify?token={magic_token.token}"
+        base = base_url or settings.FRONTEND_URL
+        magic_link_url = f"{base}/login/verify?token={magic_token.token}"
         subject = "Your BottleCRM sign-in link"
         html_content = render_to_string(
             "magic_link_email.html",

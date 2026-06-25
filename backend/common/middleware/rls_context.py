@@ -121,6 +121,9 @@ class RequireOrgContext:
         # Public CSAT survey link (Tier 2 csat) — anonymous, sets RLS
         # context manually inside the view from the survey's own org_id.
         "/api/public/csat/",
+        # MCP OAuth authorization server (no org context until /token mints a PAT).
+        "/oauth/",
+        "/.well-known/oauth-",
     ]
 
     def __init__(self, get_response):

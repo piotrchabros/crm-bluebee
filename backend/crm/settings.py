@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django_ses",
     "drf_spectacular",
     "common",
+    "oauth_mcp",
     "accounts",
     "cases",
     "contacts",

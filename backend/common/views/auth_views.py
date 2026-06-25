@@ -489,6 +489,35 @@ class OrgSwitchView(APIView):
         )
 
 
+def _resolve_frontend_base(origin):
+    """Pick the frontend base URL for the magic link.
+
+    The CRM is served on several domains; the sign-in link should point
+    back to the domain the user came from. The requested origin\u2019s host is
+    validated against the trusted-origins allowlist (CSRF_TRUSTED_ORIGINS +
+    FRONTEND_URL) so a forged Origin cannot redirect the sign-in token to an
+    attacker domain. Unknown/missing origins fall back to FRONTEND_URL.
+    """
+    from urllib.parse import urlparse
+
+    from django.conf import settings
+
+    default = settings.FRONTEND_URL
+    if not origin or not isinstance(origin, str):
+        return default
+    host = urlparse(origin).netloc
+    if not host:
+        return default
+    allowed = {urlparse(default).netloc}
+    for trusted in getattr(settings, "CSRF_TRUSTED_ORIGINS", []) or []:
+        netloc = urlparse(trusted).netloc
+        if netloc:
+            allowed.add(netloc)
+    if host in allowed:
+        return "https://%s" % host
+    return default
+
+
 class MagicLinkRequestView(APIView):
     """
     Request a magic link for passwordless login/registration.
@@ -552,8 +581,14 @@ class MagicLinkRequestView(APIView):
             ip_address=request.META.get("REMOTE_ADDR"),
         )
 
+        # Build the link on the SAME frontend domain the user came from
+        # (validated against the trusted-origins allowlist).
+        base_url = _resolve_frontend_base(request.data.get("origin"))
+
         # Send email via Celery — pass raw_code only when delivery is "code".
-        send_magic_link_email.delay(str(token_obj.id), raw_code=raw_code)
+        send_magic_link_email.delay(
+            str(token_obj.id), raw_code=raw_code, base_url=base_url
+        )
 
         return Response(
             {"message": "If this email is valid, you will receive a sign-in link."},

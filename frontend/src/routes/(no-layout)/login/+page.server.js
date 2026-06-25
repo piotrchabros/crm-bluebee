@@ -189,7 +189,7 @@ async function generateOAuthUrl(cookies) {
 
 /** @type {import('@sveltejs/kit').Actions} */
 export const actions = {
-  default: async ({ request }) => {
+  default: async ({ request, url }) => {
     const formData = await request.formData();
     const email = formData.get('email');
 
@@ -201,7 +201,7 @@ export const actions = {
       const apiUrl = publicEnv.PUBLIC_DJANGO_API_URL;
       await axios.post(
         `${apiUrl}/api/auth/magic-link/request/`,
-        { email },
+        { email, origin: url.origin },
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
       return { success: true };
