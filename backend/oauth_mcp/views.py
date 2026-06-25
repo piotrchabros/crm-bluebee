@@ -12,6 +12,7 @@ jwt_access cookie + explicit consent) -> token (PKCE check -> mint a PAT).
 import base64
 import hashlib
 import json
+import logging
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
@@ -30,6 +31,8 @@ from .models import OAuthAuthCode, OAuthClient
 
 CODE_TTL_SECONDS = 90
 
+logger = logging.getLogger("oauth_mcp")
+
 
 def _issuer(request):
     # The CRM always runs behind TLS (Caddy); the proxy SSL header isn't set,
@@ -44,6 +47,39 @@ def _set_org_rls(org_id):
         cur.execute("SELECT set_config('app.current_org', %s, false)", [str(org_id)])
 
 
+def _decode_jwt_claims(raw):
+    """Return (user_id, org_id) from a SimpleJWT access token.
+
+    Tolerates expiry: the jwt_access cookie lives a day but the access-token
+    JWT expires in ~1h (the frontend refreshes it on navigation). For the
+    consent screen we only need to identify the logged-in user, and the real
+    authorization check is that an active Profile still exists -- so a stale
+    but validly *signed* token is acceptable here. The signature is always
+    verified, so the token cannot be forged.
+    """
+    from rest_framework_simplejwt.exceptions import TokenError
+    from rest_framework_simplejwt.tokens import AccessToken
+
+    try:
+        tok = AccessToken(raw)
+        return tok["user_id"], tok.get("org_id")
+    except TokenError:
+        pass  # expired / failed lifetime check -- verify signature only below
+
+    import jwt as pyjwt
+    from django.conf import settings as dj_settings
+    from rest_framework_simplejwt.settings import api_settings as jwt_settings
+
+    key = jwt_settings.VERIFYING_KEY or jwt_settings.SIGNING_KEY or dj_settings.SECRET_KEY
+    payload = pyjwt.decode(
+        raw,
+        key,
+        algorithms=[jwt_settings.ALGORITHM],
+        options={"verify_exp": False, "verify_aud": False},
+    )
+    return payload.get("user_id"), payload.get("org_id")
+
+
 def _profile_from_session(request):
     """Resolve the logged-in CRM user from the jwt_access cookie.
 
@@ -52,16 +88,15 @@ def _profile_from_session(request):
     """
     raw = request.COOKIES.get("jwt_access")
     if not raw:
+        logger.warning("oauth authorize: no jwt_access cookie on the request")
         return None
     try:
-        from rest_framework_simplejwt.tokens import AccessToken
-
-        tok = AccessToken(raw)
-        user_id = tok["user_id"]
-        org_id = tok.get("org_id")
-    except Exception:
+        user_id, org_id = _decode_jwt_claims(raw)
+    except Exception as exc:
+        logger.warning("oauth authorize: jwt decode failed: %s", exc)
         return None
     if not org_id:
+        logger.warning("oauth authorize: token has no org_id (user_id=%s)", user_id)
         return None
     _set_org_rls(org_id)
     try:
@@ -69,6 +104,9 @@ def _profile_from_session(request):
             user_id=user_id, org_id=org_id, is_active=True
         )
     except Profile.DoesNotExist:
+        logger.warning(
+            "oauth authorize: no active profile for user_id=%s org_id=%s", user_id, org_id
+        )
         return None
 
 
