@@ -30,7 +30,7 @@
 
 <Sidebar.Provider open={defaultOpen} class="" style="">
   <AppSidebar {user} {org_name} {org_settings} />
-  <Sidebar.Inset class="">
+  <Sidebar.Inset class="min-w-0">
     {@render children?.()}
   </Sidebar.Inset>
 </Sidebar.Provider>

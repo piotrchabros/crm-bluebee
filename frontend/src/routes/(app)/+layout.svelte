@@ -15,7 +15,7 @@
 </script>
 
 <AppShell user={data.user} org_name={data.org_name} org_settings={data.org_settings}>
-  <main class="relative flex-1">
+  <main class="relative flex-1 min-w-0">
     {@render children()}
   </main>
 </AppShell>

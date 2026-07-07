@@ -1189,7 +1189,7 @@
   <title>Opportunities - BottleCRM</title>
 </svelte:head>
 
-<div class="flex flex-col">
+<div class="flex flex-col" class:h-svh={viewMode === 'kanban'} class:overflow-hidden={viewMode === 'kanban'}>
 <PageHeader title="Opportunities" subtitle="Pipeline: {formatCurrency(stats.pipeline)}">
   {#snippet actions()}
     <div class="flex items-center gap-2">
@@ -1361,7 +1361,7 @@
   {/snippet}
 </PageHeader>
 
-<div class="flex-1">
+<div class="flex flex-1 flex-col" class:min-h-0={viewMode === 'kanban'}>
   <!-- Filter Strip -->
   <FilterStrip>
     <SearchInput
@@ -1396,16 +1396,19 @@
     {/snippet}
   </FilterStrip>
   {#if viewMode === 'kanban'}
-    <!-- Kanban View — rendered directly (no wrapper) so the shared KanbanBoard
-         can claim its h-full of the parent flex-1 container, matching the
-         pattern used on the tasks page. -->
-    <OpportunityKanban
-      data={kanbanData}
-      loading={!kanbanData}
-      onStageChange={handleKanbanStageChange}
-      onCardClick={handleKanbanCardClick}
-      onAddItem={handleKanbanAddItem}
-    />
+    <!-- Kanban View — bounded by the h-svh + overflow-hidden root (kanban mode)
+         so the 6-column board scrolls inside its own overflow-x-auto instead of
+         widening the page and dragging the sticky header off-screen. Mirrors the
+         leads/tasks containment pattern. -->
+    <div class="flex min-h-0 flex-1 flex-col">
+      <OpportunityKanban
+        data={kanbanData}
+        loading={!kanbanData}
+        onStageChange={handleKanbanStageChange}
+        onCardClick={handleKanbanCardClick}
+        onAddItem={handleKanbanAddItem}
+      />
+    </div>
   {:else if filteredOpportunities.length === 0}
     <div class="flex flex-col items-center justify-center py-16 text-center">
       <div
