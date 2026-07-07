@@ -241,7 +241,8 @@ export const handle = sequence(Sentry.sentryHandle(), async function _handle({ e
   const pathname = event.url.pathname;
 
   // Define public routes (no auth required)
-  const PUBLIC_ROUTES = ['/login', '/logout', '/bounce'];
+  // '/oferta' = public AI offer pages (Feature 4) — shared with clients, no login.
+  const PUBLIC_ROUTES = ['/login', '/logout', '/bounce', '/oferta'];
 
   // Define semi-protected routes (auth required, but no org)
   const AUTH_ONLY_ROUTES = ['/org'];

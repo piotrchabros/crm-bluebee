@@ -164,5 +164,47 @@ export const actions = {
         error: /** @type {any} */ (err)?.message || 'Failed to save custom fields'
       });
     }
+  },
+  // Generate a BlueBee AI offer for this opportunity. The Django proxy holds the
+  // API key and writes offer_id/offer_url/offer_brand/offer_status on success.
+  generateOffer: async ({ request, params, locals, cookies }) => {
+    const form = await request.formData();
+    const brand = form.get('brand')?.toString() || undefined;
+    try {
+      const res = await apiRequest(
+        `/opportunities/${params.id}/generate-offer/`,
+        { method: 'POST', body: brand ? { brand } : {} },
+        { cookies, org: locals.org }
+      );
+      return { success: true, action: 'generateOffer', offerUrl: res?.url };
+    } catch (err) {
+      console.error('Generate offer error:', err);
+      return fail(400, {
+        action: 'generateOffer',
+        error: /** @type {any} */ (err)?.message || 'Failed to generate offer'
+      });
+    }
+  },
+  // Apply a natural-language edit to the already-generated offer (same link).
+  editOffer: async ({ request, params, locals, cookies }) => {
+    const form = await request.formData();
+    const instruction = (form.get('instruction')?.toString() || '').trim();
+    if (instruction.length < 3) {
+      return fail(400, { action: 'editOffer', error: 'Wpisz, co zmienić.' });
+    }
+    try {
+      const res = await apiRequest(
+        `/opportunities/${params.id}/edit-offer/`,
+        { method: 'POST', body: { instruction } },
+        { cookies, org: locals.org }
+      );
+      return { success: true, action: 'editOffer', offerUrl: res?.url };
+    } catch (err) {
+      console.error('Edit offer error:', err);
+      return fail(400, {
+        action: 'editOffer',
+        error: /** @type {any} */ (err)?.message || 'Failed to edit offer'
+      });
+    }
   }
 };

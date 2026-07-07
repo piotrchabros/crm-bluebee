@@ -60,10 +60,15 @@ export async function load({ locals, cookies }) {
     }));
 
     // Calculate opportunity revenue (sum of all opportunity amounts)
-    const opportunityRevenue = (dashboardResponse.opportunities || []).reduce(
-      (sum, opp) => sum + (opp.amount ? parseFloat(opp.amount) : 0),
-      0
-    );
+    // Prefer the server-computed total: the dashboard endpoint now returns only
+    // the 5 most-recent opportunities, so summing the array client-side would
+    // undercount. Fall back to the array for older API responses.
+    const opportunityRevenue =
+      dashboardResponse.opportunity_revenue_total ??
+      (dashboardResponse.opportunities || []).reduce(
+        (sum, opp) => sum + (opp.amount ? parseFloat(opp.amount) : 0),
+        0
+      );
 
     // Tasks and activities now come from dashboard response (no separate API calls)
     // Transform tasks from dashboard response

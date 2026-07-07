@@ -24,7 +24,11 @@ export const actions = {
       domain: formData.get('domain') || null,
       description: formData.get('description') || null,
       default_currency: formData.get('default_currency'),
-      default_country: formData.get('default_country') || null
+      default_country: formData.get('default_country') || null,
+      // Offer branding (Feature 5)
+      offer_theme: formData.get('offer_theme') || 'dark',
+      offer_accent: formData.get('offer_accent') || '#E3FF04',
+      offer_prepared_by: formData.get('offer_prepared_by') || ''
     };
 
     try {

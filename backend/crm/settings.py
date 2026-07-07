@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "contacts",
     "leads",
     "opportunity",
+    "offers",
     "tasks",
     "invoices",
     "orders",
@@ -369,3 +370,19 @@ GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
 # Public registration: set to True to allow anyone to create an account via
 # magic link / Google OAuth. False = admin-only user creation.
 ALLOW_PUBLIC_REGISTRATION = os.environ.get("ALLOW_PUBLIC_REGISTRATION", "False").lower() == "true"
+
+# BlueBee AI Offer Generation (https://bluebee.marketing)
+# Backend-only proxy credentials. The key must never reach the frontend — all
+# calls to BlueBee go through the Django proxy endpoints in `opportunity`.
+BLUEBEE_OFFERS_BASE_URL = os.environ.get("BLUEBEE_OFFERS_BASE_URL", "https://bluebee.marketing")
+BLUEBEE_OFFERS_API_KEY = os.environ.get("BLUEBEE_OFFERS_API_KEY", "")
+# AI generation takes ~15-30s; give headroom.
+BLUEBEE_OFFERS_TIMEOUT = int(os.environ.get("BLUEBEE_OFFERS_TIMEOUT", "90"))
+
+# Native AI offer generator (Feature 4) — Gemini via google-genai. Backend-only.
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
+GEMINI_FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash")
+GEMINI_MAX_OUTPUT_TOKENS = int(os.environ.get("GEMINI_MAX_OUTPUT_TOKENS", "16384"))
+# Public base URL used to build shareable offer links (/oferta/<slug>-<token>).
+OFFERS_PUBLIC_BASE_URL = os.environ.get("OFFERS_PUBLIC_BASE_URL", "https://crm.bespokesoft.pl")

@@ -18,6 +18,10 @@ from opportunity.views.opportunity_interactions import (
     OpportunityAttachmentView,
     OpportunityCommentView,
 )
+from opportunity.views.offer_views import (
+    OpportunityEditOfferView,
+    OpportunityGenerateOfferView,
+)
 from opportunity.views.opportunity_views import (
     OpportunityDetailView,
     OpportunityListView,
@@ -34,6 +38,9 @@ urlpatterns = [
     path("goals/<str:pk>/", SalesGoalDetailView.as_view()),
     path("<str:pk>/", OpportunityDetailView.as_view()),
     path("<str:pk>/move/", OpportunityMoveView.as_view()),
+    # BlueBee AI offer generation / edit
+    path("<str:pk>/generate-offer/", OpportunityGenerateOfferView.as_view()),
+    path("<str:pk>/edit-offer/", OpportunityEditOfferView.as_view()),
     path("comment/<str:pk>/", OpportunityCommentView.as_view()),
     path("attachment/<str:pk>/", OpportunityAttachmentView.as_view()),
     # Line items

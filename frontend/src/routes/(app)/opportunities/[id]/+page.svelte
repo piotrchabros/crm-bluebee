@@ -1,5 +1,6 @@
 <script>
   import { goto } from '$app/navigation';
+  import { enhance } from '$app/forms';
   import {
     Pencil,
     Mail,
@@ -7,7 +8,11 @@
     MoreHorizontal,
     Paperclip,
     MessageSquare,
-    Calendar
+    Calendar,
+    Sparkles,
+    Copy,
+    ExternalLink,
+    Check
   } from '@lucide/svelte';
   import { PageHeader } from '$lib/components/layout';
   import { StageStepper } from '$lib/components/ui/stage-stepper';
@@ -41,6 +46,45 @@
   const customFieldValues = $derived(data.customFieldValues || {});
 
   let tab = $state('overview');
+
+  // --- AI offer generation (branding comes from the active organization) ---
+  let generating = $state(false);
+  let editingOffer = $state(false);
+  let editInstruction = $state('');
+  let offerError = $state('');
+  let copied = $state(false);
+
+  function onGenerate() {
+    generating = true;
+    offerError = '';
+    return async (/** @type {any} */ { update, result }) => {
+      await update({ reset: false });
+      generating = false;
+      if (result?.type === 'failure') offerError = result.data?.error || 'Nie udało się wygenerować oferty.';
+    };
+  }
+
+  function onEditOffer() {
+    editingOffer = true;
+    offerError = '';
+    return async (/** @type {any} */ { update, result }) => {
+      await update({ reset: false });
+      editingOffer = false;
+      if (result?.type === 'failure') offerError = result.data?.error || 'Nie udało się zaktualizować oferty.';
+      else editInstruction = '';
+    };
+  }
+
+  async function copyOfferLink() {
+    if (!opp?.offer_url) return;
+    try {
+      await navigator.clipboard.writeText(opp.offer_url);
+      copied = true;
+      setTimeout(() => (copied = false), 1500);
+    } catch {
+      offerError = 'Nie udało się skopiować linku.';
+    }
+  }
 
   // --- Inline-edit support (record detail page) ---
   const recordId = $derived(opp?.id);
@@ -297,6 +341,82 @@
 
       <!-- Right rail -->
       <div class="flex flex-col gap-6">
+        <!-- BlueBee AI offer -->
+        <SectionCard title="Generator Oferty">
+          <div class="flex flex-col gap-3 text-[12px]">
+            {#if opp?.offer_url}
+              <div class="flex items-center gap-2">
+                <a
+                  href={opp.offer_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex min-w-0 items-center gap-1 font-medium text-[color:var(--text)] hover:underline"
+                >
+                  <ExternalLink class="size-3.5 shrink-0" />
+                  <span class="truncate">{opp.offer_url}</span>
+                </a>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-7 shrink-0"
+                  aria-label="Kopiuj link"
+                  onclick={copyOfferLink}
+                >
+                  {#if copied}<Check class="size-3.5 text-green-600" />{:else}<Copy class="size-3.5" />{/if}
+                </Button>
+              </div>
+              {#if opp.offer_status === 'error'}
+                <p class="text-[11px] text-red-600">błąd ostatniej operacji</p>
+              {/if}
+            {/if}
+
+            <!-- Generate / Regenerate (branding from the organization) -->
+            <form method="POST" action="?/generateOffer" use:enhance={onGenerate} class="flex flex-col gap-2">
+              <p class="text-[11px] text-[color:var(--text-subtle)]">
+                Branding wg organizacji (ustawienia → Organizacja).
+              </p>
+              <Button type="submit" size="sm" disabled={generating} class="w-full">
+                <Sparkles class="mr-1.5 size-3.5" />
+                {#if generating}Generuję ofertę…{:else if opp?.offer_url}Regeneruj ofertę{:else}Generuj ofertę{/if}
+              </Button>
+              {#if generating}
+                <p class="text-[11px] text-[color:var(--text-subtle)]">AI buduje ofertę — to potrwa ~20 s.</p>
+              {/if}
+            </form>
+
+            <!-- Edit offer (natural language) — gated on a generated link -->
+            {#if opp?.offer_url}
+              <form
+                method="POST"
+                action="?/editOffer"
+                use:enhance={onEditOffer}
+                class="flex flex-col gap-2 border-t border-[color:var(--border)]/40 pt-3"
+              >
+                <textarea
+                  name="instruction"
+                  bind:value={editInstruction}
+                  rows="2"
+                  placeholder="np. podnieś cenę Wariantu A o 20%, dodaj sekcję FAQ"
+                  class="rounded-md border border-[color:var(--border)] bg-[color:var(--bg)] px-2 py-1.5 text-[12px]"
+                ></textarea>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  disabled={editingOffer || editInstruction.trim().length < 3}
+                  class="w-full"
+                >
+                  {#if editingOffer}Aktualizuję…{:else}Edytuj ofertę{/if}
+                </Button>
+              </form>
+            {/if}
+
+            {#if offerError}
+              <p class="text-[11px] text-red-600">{offerError}</p>
+            {/if}
+          </div>
+        </SectionCard>
+
         <!-- Relations -->
         <SectionCard title="Related">
           <dl class="grid grid-cols-1 gap-y-3 text-[12px]">

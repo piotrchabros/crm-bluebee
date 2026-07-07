@@ -124,8 +124,19 @@ class OrgSettingsSerializer(serializers.ModelSerializer):
             "default_currency",
             "default_country",
             "currency_symbol",
+            # Offer branding (Feature 5)
+            "offer_theme",
+            "offer_accent",
+            "offer_prepared_by",
         ]
         read_only_fields = ["id", "currency_symbol", "logo_url"]
+
+    def validate_offer_accent(self, value):
+        import re
+
+        if value and not re.fullmatch(r"#[0-9a-fA-F]{6}", value.strip()):
+            raise serializers.ValidationError("Accent must be a hex color like #0d6efd.")
+        return value.strip() if value else value
 
     @extend_schema_field(str)
     def get_currency_symbol(self, obj):

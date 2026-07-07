@@ -55,6 +55,10 @@
   let formDescription = $state('');
   let formCurrency = $state('USD');
   let formCountry = $state('');
+  // Offer branding (Feature 5)
+  let formOfferTheme = $state('dark');
+  let formOfferAccent = $state('#E3FF04');
+  let formOfferPreparedBy = $state('');
 
   // Update form state when settings change
   $effect(() => {
@@ -63,6 +67,9 @@
     formDescription = settings.description || '';
     formCurrency = settings.default_currency || 'USD';
     formCountry = settings.default_country || '';
+    formOfferTheme = settings.offer_theme || 'dark';
+    formOfferAccent = settings.offer_accent || '#E3FF04';
+    formOfferPreparedBy = settings.offer_prepared_by || '';
   });
 
   // Handle form result
@@ -369,6 +376,58 @@
               </div>
             {/if}
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Offer Branding (Feature 5) -->
+    <section class="section-reveal delay-2">
+      <div class="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)] p-6">
+        <h3 class="mb-1 text-lg font-semibold">Branding ofert</h3>
+        <p class="text-muted-foreground mb-4 text-sm">
+          Wygląd publicznych ofert (/oferta). Logo, nazwa firmy, email i strona pochodzą z profilu
+          organizacji powyżej; tu ustawiasz motyw i kolor akcentu.
+        </p>
+        <div class="grid gap-4 sm:grid-cols-3">
+          <label class="flex flex-col gap-1 text-sm">
+            <span>Motyw</span>
+            <select
+              name="offer_theme"
+              bind:value={formOfferTheme}
+              class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg)] px-3 py-2"
+            >
+              <option value="dark">Ciemny</option>
+              <option value="light">Jasny</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1 text-sm">
+            <span>Kolor akcentu</span>
+            <span class="flex items-center gap-2">
+              <input
+                type="color"
+                bind:value={formOfferAccent}
+                aria-label="Kolor akcentu"
+                class="h-9 w-12 shrink-0 rounded border border-[var(--border-subtle)] bg-transparent"
+              />
+              <input
+                type="text"
+                name="offer_accent"
+                bind:value={formOfferAccent}
+                placeholder="#0d6efd"
+                class="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg)] px-3 py-2"
+              />
+            </span>
+          </label>
+          <label class="flex flex-col gap-1 text-sm">
+            <span>Podpis (przygotował)</span>
+            <input
+              type="text"
+              name="offer_prepared_by"
+              bind:value={formOfferPreparedBy}
+              placeholder="np. BespokeSoft (Dawid Kawalec)"
+              class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg)] px-3 py-2"
+            />
+          </label>
         </div>
       </div>
     </section>

@@ -1,6 +1,7 @@
 from django.urls import include, path
 
 from cases.csat_views import PublicCsatView
+from offers.views import PublicOfferLogoView, PublicOfferView
 from tasks.urls import board_urlpatterns
 
 app_name = "common_urls"
@@ -10,6 +11,7 @@ urlpatterns = [
     path("contacts/", include("contacts.urls", namespace="api_contacts")),
     path("leads/", include("leads.urls", namespace="api_leads")),
     path("opportunities/", include("opportunity.urls", namespace="api_opportunities")),
+    path("offers/", include("offers.urls", namespace="api_offers")),
     # Teams URLs are now in common app at /api/teams/
     path("tasks/", include("tasks.urls", namespace="api_tasks")),
     path("cases/", include("cases.urls", namespace="api_cases")),
@@ -31,5 +33,16 @@ urlpatterns = [
     # link with no auth context.
     path(
         "public/csat/<str:token>/", PublicCsatView.as_view(), name="public_csat"
+    ),
+    # Public offer render data — anonymous, slug+token scoped (Feature 4).
+    path(
+        "public/offers/<slug:slug>/<str:token>/",
+        PublicOfferView.as_view(),
+        name="public_offer",
+    ),
+    path(
+        "public/offers/<slug:slug>/<str:token>/logo/",
+        PublicOfferLogoView.as_view(),
+        name="public_offer_logo",
     ),
 ]

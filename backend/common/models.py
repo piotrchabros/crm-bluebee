@@ -139,6 +139,22 @@ class Org(BaseModel):
     # explicit confirmation; this flag only controls the default state.
     auto_close_children_on_parent_close = models.BooleanField(default=False)
 
+    # Offer branding (Feature 5 — per-org white-label). Reuses company_name /
+    # name / email / website / logo above; these add the visual + signature.
+    OFFER_THEME_CHOICES = (("dark", "Dark"), ("light", "Light"))
+    offer_theme = models.CharField(
+        max_length=8, choices=OFFER_THEME_CHOICES, default="dark",
+        help_text="Base palette for generated offer pages.",
+    )
+    offer_accent = models.CharField(
+        max_length=9, default="#E3FF04",
+        help_text="Hex accent color (e.g. #0d6efd) driving offer links/headings/highlights.",
+    )
+    offer_prepared_by = models.CharField(
+        max_length=255, blank=True,
+        help_text="Signature on offers; falls back to company_name / name when blank.",
+    )
+
     class Meta:
         verbose_name = "Organization"
         verbose_name_plural = "Organizations"

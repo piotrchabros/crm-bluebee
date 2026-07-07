@@ -80,12 +80,20 @@
   let editingTeam = $state(null);
   let isTeamLoading = $state(false);
 
+  // Handle form results. `processedForm` guards against an infinite loop: the
+  // effect reads `data` (via data.availableOrgs) and calls invalidateAll(),
+  // which mutates `data` -> the effect re-runs with the same `form` result ->
+  // toast + invalidateAll fire again ~15x/second. Only react to a NEW result.
+  let processedForm = null;
+
   // Handle form results
   $effect(() => {
     if (!form) {
       isTeamLoading = false;
       return;
     }
+    if (form === processedForm) return;
+    processedForm = form;
 
     // Adding a member can target several orgs at once: report each outcome.
     if (form.action === 'add_user') {

@@ -43,8 +43,13 @@ class OpportunityListView(APIView, LimitOffsetPagination):
 
     def get_context_data(self, **kwargs):
         params = self.request.query_params
-        queryset = self.model.objects.filter(org=self.request.profile.org).order_by(
-            "-id"
+        queryset = (
+            self.model.objects.filter(org=self.request.profile.org)
+            .order_by("-id")
+            .select_related("account", "closed_by", "created_by", "org")
+            .prefetch_related(
+                "assigned_to", "tags", "contacts", "teams", "line_items__product"
+            )
         )
         accounts = Account.objects.filter(org=self.request.profile.org)
         contacts = Contact.objects.filter(org=self.request.profile.org)
@@ -159,8 +164,14 @@ class OpportunityListView(APIView, LimitOffsetPagination):
             }
         )
         context["opportunities"] = opportunities
-        context["accounts_list"] = AccountSerializer(accounts, many=True).data
-        context["contacts_list"] = ContactSerializer(contacts, many=True).data
+        # Filter-dropdown data only needs id + display fields. Serializing the
+        # full nested Account/Contact serializers over every org record caused a
+        # severe N+1 (e.g. 814 accounts -> ~7.4k queries -> ~9s per page load).
+        # The frontend maps these to {id, name} / {id, first/last, email} anyway.
+        context["accounts_list"] = list(accounts.values("id", "name"))
+        context["contacts_list"] = list(
+            contacts.values("id", "first_name", "last_name", "email")
+        )
         context["tags"] = TagsSerializer(
             Tags.objects.filter(org=self.request.profile.org, is_active=True), many=True
         ).data

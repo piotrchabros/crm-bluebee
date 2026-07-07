@@ -57,7 +57,13 @@ class ApiHomeView(APIView):
         leads = Lead.objects.filter(org=org).exclude(
             Q(status="converted") | Q(status="closed")
         )
-        opportunities = Opportunity.objects.filter(org=org)
+        opportunities = (
+            Opportunity.objects.filter(org=org)
+            .select_related("account", "closed_by", "created_by", "org")
+            .prefetch_related(
+                "assigned_to", "tags", "contacts", "teams", "line_items__product"
+            )
+        )
         tasks = Task.objects.filter(org=org)
 
         is_admin = profile.role == "ADMIN" or request.user.is_superuser
@@ -85,10 +91,26 @@ class ApiHomeView(APIView):
         context["contacts_count"] = contacts.count()
         context["leads_count"] = leads.count()
         context["opportunities_count"] = opportunities.count()
-        context["accounts"] = AccountSerializer(accounts, many=True).data
-        context["contacts"] = ContactSerializer(contacts, many=True).data
-        context["leads"] = LeadSerializer(leads, many=True).data
-        context["opportunities"] = OpportunitySerializer(opportunities, many=True).data
+        # The dashboard only renders the *counts* of accounts/contacts (never the
+        # lists) and just the 5 most-recent leads/opportunities. Serializing every
+        # account through the heavy nested serializer was an ~9s N+1 on large orgs
+        # (e.g. 813 accounts -> ~7.4k queries). Return only what the dashboard uses;
+        # the all-opps revenue sum is provided server-side so capping opps to 5
+        # doesn't undercount it.
+        context["accounts"] = []
+        context["contacts"] = []
+        context["leads"] = LeadSerializer(
+            leads.order_by("-created_at")[:5], many=True
+        ).data
+        context["opportunities"] = OpportunitySerializer(
+            opportunities.order_by("-created_at")[:5], many=True
+        ).data
+        context["opportunity_revenue_total"] = float(
+            opportunities.aggregate(
+                total=Coalesce(Sum("amount"), 0, output_field=DecimalField())
+            )["total"]
+            or 0
+        )
 
         # NEW: Urgent counts for Focus Bar
         overdue_tasks = tasks.filter(

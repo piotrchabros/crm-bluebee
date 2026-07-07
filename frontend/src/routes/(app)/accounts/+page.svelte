@@ -26,10 +26,12 @@
     UserPlus,
     Contact,
     Banknote,
-    CheckSquare
+    CheckSquare,
+    Upload
   } from '@lucide/svelte';
   import { PageHeader, FilterStrip, ViewTabs, FilterPill } from '$lib/components/layout';
   import { CrmDrawer } from '$lib/components/ui/crm-drawer';
+  import AccountImportDrawer from '$lib/components/accounts/AccountImportDrawer.svelte';
   import { CommentSection } from '$lib/components/ui/comment-section';
   import { getCurrentUser } from '$lib/api.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -408,6 +410,9 @@
     drawerOpen = true;
     updateUrl(account.id, null);
   }
+
+  // CSV import drawer
+  let importOpen = $state(false);
 
   /**
    * Open create drawer
@@ -840,6 +845,10 @@
           {/each}
         </DropdownMenu.Content>
       </DropdownMenu.Root>
+      <Button variant="outline" onclick={() => (importOpen = true)}>
+        <Upload class="mr-2 h-4 w-4" />
+        Import CSV
+      </Button>
       <Button onclick={openCreate} disabled={false}>
         <Plus class="mr-2 h-4 w-4" />
         New Account
@@ -1255,3 +1264,5 @@
 >
   <input type="hidden" name="accountId" value={formState.accountId} />
 </form>
+
+<AccountImportDrawer bind:open={importOpen} />

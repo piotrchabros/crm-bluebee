@@ -208,8 +208,14 @@ class CaseListView(APIView, LimitOffsetPagination):
         context["status"] = STATUS_CHOICE
         context["priority"] = PRIORITY_CHOICE
         context["type_of_case"] = CASE_TYPE
-        context["accounts_list"] = AccountSerializer(accounts, many=True).data
-        context["contacts_list"] = ContactSerializer(contacts, many=True).data
+        # Filter-dropdown data only needs id + display fields; serializing the
+        # full nested Account/Contact serializers over every org record is a
+        # severe N+1 (800+ accounts -> thousands of queries -> ~9s). No frontend
+        # consumer reads more than id/name here.
+        context["accounts_list"] = list(accounts.values("id", "name"))
+        context["contacts_list"] = list(
+            contacts.values("id", "first_name", "last_name", "email")
+        )
         return context
 
     @extend_schema(

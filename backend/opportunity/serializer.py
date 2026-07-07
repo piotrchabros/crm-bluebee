@@ -192,6 +192,11 @@ class OpportunitySerializer(serializers.ModelSerializer):
             "aging_status",
             # Per-org custom fields (validated via common.custom_fields)
             "custom_fields",
+            # BlueBee AI offer integration
+            "offer_brand",
+            "offer_id",
+            "offer_url",
+            "offer_status",
         )
 
 
@@ -245,6 +250,9 @@ class OpportunityCreateSerializer(serializers.ModelSerializer):
             "description",
             # Status
             "is_active",
+            # BlueBee AI offer integration (brand is user-selectable; the rest
+            # are written server-side by the generate/edit offer endpoints)
+            "offer_brand",
         )
 
     def create(self, validated_data):

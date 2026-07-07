@@ -168,11 +168,11 @@ class AccountsListView(APIView, LimitOffsetPagination):
             is_active=True, org=self.request.profile.org
         ).values("id", "user__email")
         context["users"] = users
-        leads = Lead.objects.filter(org=self.request.profile.org).exclude(
-            Q(status="converted") | Q(status="closed")
-        )
+        # The accounts list page does not consume `leads`; it previously
+        # serialized every open lead in the org through the heavy serializer
+        # (unbounded N+1). Nothing reads it, so drop it.
         context["users"] = users
-        context["leads"] = LeadSerializer(leads, many=True).data
+        context["leads"] = []
         context["status"] = ["active", "inactive"]  # Maps to is_active field
         return context
 
